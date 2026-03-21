@@ -322,12 +322,12 @@
 
         // === ИКОНКА ВОЗДУШНОГО ШАРА ===
         const balloonIcon = L.divIcon({
-            html: '<i class="fas fa-hot-air-balloon"></i>',
-            className: 'balloon-marker',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -16]
-        });
+    html: '<div style="font-size: 32px; text-align: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); animation: float 3s ease-in-out infinite;">🎈</div>',
+    className: 'balloon-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16]
+});
 
         async function getWindData(lat, lng) {
             try {
