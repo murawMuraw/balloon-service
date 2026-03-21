@@ -163,7 +163,7 @@ cron.schedule('* * * * *', async () => {
 
 // ========== API ENDPOINTS ==========
 
-// Тестовый endpoint для проверки API ключа
+// Тестовый endpoint для проверки работы сервера
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -172,12 +172,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Получение ветра для клиента (без ключа!)
+// ========== ГЛАВНЫЙ ЭНДПОИНТ ВЕТРА (для фронтенда) ==========
+// ВНИМАНИЕ! Фронтенд передаёт параметр "lon" (не "lng")
 app.get('/api/wind', async (req, res) => {
   const lat = parseFloat(req.query.lat);
-  const lng = parseFloat(req.query.lng);
+  const lng = parseFloat(req.query.lon); // Используем lon, потому что фронтенд передаёт lon
+  
+  console.log(`🌬️ Запрос ветра: lat=${lat}, lon=${lng}`);
   
   if (isNaN(lat) || isNaN(lng)) {
+    console.log('❌ Некорректные координаты:', { lat, lng });
     return res.status(400).json({ error: 'Invalid coordinates' });
   }
   
@@ -185,12 +189,14 @@ app.get('/api/wind', async (req, res) => {
     const wind = await getWindData(lat, lng);
     
     if (wind) {
+      console.log(`✅ Ветер: ${wind.speed} м/с, направление ${wind.direction}°`);
       res.json(wind);
     } else {
+      console.log('❌ Нет данных о ветре');
       res.status(404).json({ error: 'No wind data available' });
     }
   } catch (error) {
-    console.error('Wind API error:', error.message);
+    console.error('❌ Ошибка получения ветра:', error.message);
     res.status(500).json({ error: 'Failed to get wind data' });
   }
 });
