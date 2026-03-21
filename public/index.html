@@ -8,9 +8,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Подключаем Font Awesome для иконок -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    
     <style>
         html, body {
             height: 100%;
@@ -34,26 +31,6 @@
             height: 100%;
             pointer-events: none;
             z-index: 1000;
-        }
-        
-        /* Стиль для маркера-шара */
-        .balloon-marker {
-            background: none;
-            border: none;
-            text-align: center;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        .balloon-marker i {
-            font-size: 32px;
-            color: #e74c3c;
-            text-shadow: 0 0 5px rgba(255,255,255,0.5);
         }
         
         .info-panel {
@@ -190,6 +167,11 @@
             opacity: 0.5;
         }
         
+        .balloon-marker {
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        
         .leaflet-control-layers {
             background: white !important;
             border: 2px solid #4285f4 !important;
@@ -227,7 +209,7 @@
     
     <div class="info-panel">
         <h3>
-            <span><i class="fas fa-hot-air-balloon" style="color: #e74c3c;"></i></span> 
+            <span>🎈</span> 
             Воздушный шар
         </h3>
         <p><strong>Точка старта:</strong></p>
@@ -258,20 +240,26 @@
 
     <script>
         // ========== НАСТРОЙКИ ==========
-        const API_URL = window.location.origin;
+        // URL вашего бэкенда на Render
+        // Если фронтенд и бэкенд на одном домене, используйте window.location.origin
+        // Если на разных — укажите полный URL вашего Web Service
+        const API_URL = window.location.origin; // ИЛИ 'https://balloon-service.onrender.com'
         
+        // ID пользователя (генерируем или берём из localStorage)
         let userId = localStorage.getItem('balloon_user_id');
         if (!userId) {
             userId = 'user_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('balloon_user_id', userId);
         }
         
+        // ========== КОНСТАНТЫ ==========
         const ZONES = {
             BRIGHT: 5000,
             MEDIUM: 10000,
             HAZE: 15000
         };
 
+        // Состояние полёта
         let isFlying = false;
         let startMarker = null;
         let balloonMarker = null;
@@ -289,12 +277,14 @@
             document.getElementById('loading').style.display = 'none';
         }, 3000);
 
+        // Создаем карту
         const map = L.map('map', {
             center: [54.5, 31.0],
             zoom: 8,
             zoomControl: true
         });
 
+        // === СЛОИ КАРТЫ ===
         const esriSatellite = L.tileLayer(
             'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
             { attribution: 'Tiles © Esri', maxZoom: 19 }
@@ -314,21 +304,14 @@
 
         L.control.scale({ metric: true, position: 'bottomleft' }).addTo(map);
 
+        // === ЭЛЕМЕНТЫ УПРАВЛЕНИЯ ===
         const startBtn = document.getElementById('startBtn');
         const resetBtn = document.getElementById('resetBtn');
         const flightStatus = document.getElementById('flightStatus');
         const hint = document.getElementById('hint');
         const windInfo = document.getElementById('windInfo');
 
-        // === ИКОНКА ВОЗДУШНОГО ШАРА ===
-        const balloonIcon = L.divIcon({
-    html: '<div style="font-size: 32px; text-align: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); animation: float 3s ease-in-out infinite;">🎈</div>',
-    className: 'balloon-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16]
-});
-
+        // === ФУНКЦИЯ ПОЛУЧЕНИЯ ВЕТРА (через ваш сервер) ===
         async function getWindData(lat, lng) {
             try {
                 const response = await fetch(`${API_URL}/api/wind?lat=${lat}&lon=${lng}`);
@@ -348,6 +331,7 @@
             }
         }
 
+        // === ФУНКЦИЯ ОБНОВЛЕНИЯ ОТОБРАЖЕНИЯ ВЕТРА ===
         function updateWindDisplay(wind) {
             if (wind) {
                 const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
@@ -370,6 +354,7 @@
             }
         }
 
+        // === ФУНКЦИЯ РАСЧЕТА СЛЕДУЮЩЕЙ ТОЧКИ ===
         function calculateNextPoint(start, wind, durationSeconds) {
             const windDirection = (wind.direction + 180) % 360;
             const distance = wind.speed * durationSeconds;
@@ -392,6 +377,7 @@
             };
         }
 
+        // === ФУНКЦИЯ ОБНОВЛЕНИЯ ПРОГНОЗА (голубая линия) ===
         async function updateForecast(startPoint) {
             if (!startPoint) return;
             
@@ -421,51 +407,54 @@
             }).addTo(map);
         }
 
-        function updateHaze(center) {
-            const canvas = document.getElementById('haze-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = map.getSize().x;
-            canvas.height = map.getSize().y;
-            
-            if (!center || !isFlying) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                return;
-            }
-            
-            const centerPoint = map.latLngToContainerPoint(center);
-            const maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
-            const gradient = ctx.createRadialGradient(
-                centerPoint.x, centerPoint.y, 0,
-                centerPoint.x, centerPoint.y, maxRadius
-            );
-            
-            const metersPerPixel = map.distance(
-                map.containerPointToLatLng([0, 0]),
-                map.containerPointToLatLng([1, 0])
-            );
-            
-            const brightRadius = ZONES.BRIGHT / metersPerPixel;
-            const mediumRadius = ZONES.MEDIUM / metersPerPixel;
-            const hazeRadius = ZONES.HAZE / metersPerPixel;
-            
-            const pos0 = 0;
-            const pos1 = Math.min(1, brightRadius / maxRadius);
-            const pos2 = Math.min(1, mediumRadius / maxRadius);
-            const pos3 = Math.min(1, hazeRadius / maxRadius);
-            const pos4 = 1;
-            
-            gradient.addColorStop(pos0, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(pos1, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(pos2, 'rgba(100, 100, 100, 0.3)');
-            gradient.addColorStop(pos3, 'rgba(50, 50, 50, 0.7)');
-            gradient.addColorStop(pos4, 'rgba(30, 30, 30, 0.9)');
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        // === ФУНКЦИЯ ДЫМКИ ===
+       function updateHaze(center) {
+    const canvas = document.getElementById('haze-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = map.getSize().x;
+    canvas.height = map.getSize().y;
+    
+    if (!center || !isFlying) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    const centerPoint = map.latLngToContainerPoint(center);
+    const maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
+    const gradient = ctx.createRadialGradient(
+        centerPoint.x, centerPoint.y, 0,
+        centerPoint.x, centerPoint.y, maxRadius
+    );
+    
+    const metersPerPixel = map.distance(
+        map.containerPointToLatLng([0, 0]),
+        map.containerPointToLatLng([1, 0])
+    );
+    
+    const brightRadius = ZONES.BRIGHT / metersPerPixel;
+    const mediumRadius = ZONES.MEDIUM / metersPerPixel;
+    const hazeRadius = ZONES.HAZE / metersPerPixel;
+    
+    // Ограничиваем значения диапазоном [0, 1]
+    const pos0 = 0;
+    const pos1 = Math.min(1, brightRadius / maxRadius);
+    const pos2 = Math.min(1, mediumRadius / maxRadius);
+    const pos3 = Math.min(1, hazeRadius / maxRadius);
+    const pos4 = 1;
+    
+    gradient.addColorStop(pos0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(pos1, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(pos2, 'rgba(100, 100, 100, 0.3)');
+    gradient.addColorStop(pos3, 'rgba(50, 50, 50, 0.7)');
+    gradient.addColorStop(pos4, 'rgba(30, 30, 30, 0.9)');
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
+        // === ФУНКЦИЯ ДВИЖЕНИЯ ШАРА ===
         function moveBalloon() {
             if (!isFlying || !balloonPosition || !currentWind) return;
             
@@ -494,11 +483,13 @@
             }
         }
 
+        // === ФУНКЦИЯ ОБНОВЛЕНИЯ КООРДИНАТ НА ПАНЕЛИ ===
         function updateCoordDisplay(lat, lng) {
             document.getElementById('coordinates').innerHTML = 
                 `Широта: ${lat.toFixed(6)}<br>Долгота: ${lng.toFixed(6)}`;
         }
 
+        // === ФУНКЦИЯ СТАРТА ПОЛЁТА ===
         async function startFlight() {
             if (!balloonPosition) {
                 alert('Сначала выберите точку старта');
@@ -533,10 +524,19 @@
                 
                 updateWindDisplay(currentWind);
                 
+                // Удаляем статический маркер
                 if (startMarker) {
                     map.removeLayer(startMarker);
                     startMarker = null;
                 }
+                
+                // Создаем маркер шара
+                const balloonIcon = L.divIcon({
+                    html: '🎈',
+                    className: 'balloon-marker',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
                 
                 balloonMarker = L.marker(balloonPosition, {
                     icon: balloonIcon,
@@ -545,9 +545,11 @@
                 
                 actualPathPoints = [balloonPosition];
                 
+                // Запускаем движение
                 if (movementInterval) clearInterval(movementInterval);
                 movementInterval = setInterval(moveBalloon, 1000);
                 
+                // Запускаем обновление ветра
                 if (windUpdateInterval) clearInterval(windUpdateInterval);
                 windUpdateInterval = setInterval(async () => {
                     if (isFlying && balloonPosition) {
@@ -577,6 +579,7 @@
             }
         }
 
+        // === ФУНКЦИЯ СБРОСА ===
         function resetFlight() {
             if (movementInterval) {
                 clearInterval(movementInterval);
@@ -634,6 +637,7 @@
             updateHaze(null);
         }
 
+        // === ОБРАБОТЧИК КЛИКА ПО КАРТЕ ===
         map.on('click', async function(e) {
             if (isFlying) return;
             
@@ -676,6 +680,7 @@
             }
         });
 
+        // === ВОССТАНОВЛЕНИЕ СОХРАНЕННОЙ ТОЧКИ ===
         (function loadSavedStartPoint() {
             try {
                 const saved = localStorage.getItem('balloon_start_point');
