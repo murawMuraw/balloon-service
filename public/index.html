@@ -408,44 +408,51 @@
         }
 
         // === ФУНКЦИЯ ДЫМКИ ===
-        function updateHaze(center) {
-            const canvas = document.getElementById('haze-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = map.getSize().x;
-            canvas.height = map.getSize().y;
-            
-            if (!center || !isFlying) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                return;
-            }
-            
-            const centerPoint = map.latLngToContainerPoint(center);
-            const maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
-            const gradient = ctx.createRadialGradient(
-                centerPoint.x, centerPoint.y, 0,
-                centerPoint.x, centerPoint.y, maxRadius
-            );
-            
-            const metersPerPixel = map.distance(
-                map.containerPointToLatLng([0, 0]),
-                map.containerPointToLatLng([1, 0])
-            );
-            
-            const brightRadius = ZONES.BRIGHT / metersPerPixel;
-            const mediumRadius = ZONES.MEDIUM / metersPerPixel;
-            const hazeRadius = ZONES.HAZE / metersPerPixel;
-            
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(brightRadius / maxRadius, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(mediumRadius / maxRadius, 'rgba(100, 100, 100, 0.3)');
-            gradient.addColorStop(hazeRadius / maxRadius, 'rgba(50, 50, 50, 0.7)');
-            gradient.addColorStop(1, 'rgba(30, 30, 30, 0.9)');
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+       function updateHaze(center) {
+    const canvas = document.getElementById('haze-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = map.getSize().x;
+    canvas.height = map.getSize().y;
+    
+    if (!center || !isFlying) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    const centerPoint = map.latLngToContainerPoint(center);
+    const maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
+    const gradient = ctx.createRadialGradient(
+        centerPoint.x, centerPoint.y, 0,
+        centerPoint.x, centerPoint.y, maxRadius
+    );
+    
+    const metersPerPixel = map.distance(
+        map.containerPointToLatLng([0, 0]),
+        map.containerPointToLatLng([1, 0])
+    );
+    
+    const brightRadius = ZONES.BRIGHT / metersPerPixel;
+    const mediumRadius = ZONES.MEDIUM / metersPerPixel;
+    const hazeRadius = ZONES.HAZE / metersPerPixel;
+    
+    // Ограничиваем значения диапазоном [0, 1]
+    const pos0 = 0;
+    const pos1 = Math.min(1, brightRadius / maxRadius);
+    const pos2 = Math.min(1, mediumRadius / maxRadius);
+    const pos3 = Math.min(1, hazeRadius / maxRadius);
+    const pos4 = 1;
+    
+    gradient.addColorStop(pos0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(pos1, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(pos2, 'rgba(100, 100, 100, 0.3)');
+    gradient.addColorStop(pos3, 'rgba(50, 50, 50, 0.7)');
+    gradient.addColorStop(pos4, 'rgba(30, 30, 30, 0.9)');
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
         // === ФУНКЦИЯ ДВИЖЕНИЯ ШАРА ===
         function moveBalloon() {
