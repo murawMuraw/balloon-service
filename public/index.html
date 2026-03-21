@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
     <title>Воздушный шар - Симулятор полета с ветром</title>
@@ -531,11 +531,10 @@
                 }
                 
                 // Создаем маркер шара
-                const balloonIcon = L.divIcon({
-                    html: '🎈',
-                    className: 'balloon-marker',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
+                const balloonIcon = L.icon({
+                    iconUrl: '/images/balloon.png',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
                 });
                 
                 balloonMarker = L.marker(balloonPosition, {
