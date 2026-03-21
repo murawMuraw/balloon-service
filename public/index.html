@@ -241,7 +241,7 @@
     <script>
         // ========== ВАШИ КЛЮЧИ ==========
         const THUNDERFOREST_API_KEY = '451d67a6998346c9872b47b9fe93116e';
-        const API_URL = window.location.origin; // или 'https://ваш-сервер.onrender.com'
+     
         // =================================
 
         const ZONES = {
@@ -313,26 +313,26 @@
         const hint = document.getElementById('hint');
         const windInfo = document.getElementById('windInfo');
 
-        async function getWindData(lat, lng) {
-            try {
-                const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_API_KEY}&units=metric`;
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.wind) {
-                    lastWindUpdate = new Date();
-                    return {
-                        speed: data.wind.speed,
-                        direction: data.wind.deg,
-                        gust: data.wind.gust || 0
-                    };
-                }
-                return null;
-            } catch (error) {
-                console.error('Ошибка получения данных о ветре:', error);
-                return null;
-            }
+      
+async function getWindData(lat, lng) {
+    try {
+        // Запрашиваем ветер через ваш сервер, а не напрямую в OpenWeatherMap
+        const response = await fetch(`${API_URL}/api/wind?lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+        
+        if (data.speed) {
+            return {
+                speed: data.speed,
+                direction: data.direction,
+                gust: data.gust || 0
+            };
         }
+        return null;
+    } catch (error) {
+        console.error('Ошибка получения данных о ветре:', error);
+        return null;
+    }
+}
 
         function updateWindDisplay(wind) {
             if (wind) {
