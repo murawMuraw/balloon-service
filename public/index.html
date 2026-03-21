@@ -317,7 +317,7 @@
 async function getWindData(lat, lng) {
     try {
         // Запрашиваем ветер через ваш сервер, а не напрямую в OpenWeatherMap
-        const response = await fetch(`${API_URL}/api/wind?lat=${lat}&lon=${lng}`);
+        const response = await fetch(`${https://balloon-service.onrender.com}/api/wind?lat=${lat}&lon=${lng}`);
         const data = await response.json();
         
         if (data.speed) {
