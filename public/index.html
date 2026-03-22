@@ -251,6 +251,95 @@
             userId = 'user_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('balloon_user_id', userId);
         }
+
+// === ВОССТАНОВЛЕНИЕ ШАРА ПРИ ЗАГРУЗКЕ ===
+async function restoreBalloon() {
+    try {
+        const response = await fetch(`${API_URL}/api/balloons/${userId}`);
+        
+        if (response.status === 404) {
+            console.log('Нет активного шара');
+            return false;
+        }
+        
+        const balloon = await response.json();
+        
+        if (balloon && balloon.is_flying) {
+            console.log('🔄 Восстанавливаем шар:', balloon.id);
+            
+            // Восстанавливаем позицию
+            balloonPosition = L.latLng(balloon.current_lat, balloon.current_lng);
+            currentWind = {
+                speed: balloon.wind_speed,
+                direction: balloon.wind_direction
+            };
+            balloonId = balloon.id;
+            
+            // Восстанавливаем путь
+            if (balloon.path && balloon.path.length > 0) {
+                actualPathPoints = balloon.path.map(p => L.latLng(p.lat, p.lng));
+                if (pathLine) map.removeLayer(pathLine);
+                pathLine = L.polyline(actualPathPoints, {
+                    color: '#ff4444',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+            }
+            
+            // Создаём маркер шара
+            const balloonIcon = L.divIcon({
+                html: '🎈',
+                className: 'balloon-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            
+            balloonMarker = L.marker(balloonPosition, {
+                icon: balloonIcon,
+                zIndexOffset: 1000
+            }).addTo(map);
+            
+            // Центрируем карту на шаре
+            map.setView(balloonPosition, 10);
+            
+            // Обновляем отображение
+            updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
+            updateWindDisplay(currentWind);
+            
+            // Запускаем движение (локально)
+            isFlying = true;
+            startBtn.disabled = true;
+            flightStatus.className = 'flight-status status-flying';
+            flightStatus.innerHTML = '🎈 В ПОЛЁТЕ';
+            hint.style.display = 'none';
+            updateHaze(balloonPosition);
+            
+            // Запускаем интервал обновления ветра
+            if (windUpdateInterval) clearInterval(windUpdateInterval);
+            windUpdateInterval = setInterval(async () => {
+                if (isFlying && balloonPosition) {
+                    const newWind = await getWindData(balloonPosition.lat, balloonPosition.lng);
+                    if (newWind) {
+                        currentWind = newWind;
+                        updateWindDisplay(currentWind);
+                    }
+                }
+            }, 60000);
+            
+            // Запускаем движение
+            if (movementInterval) clearInterval(movementInterval);
+            movementInterval = setInterval(moveBalloon, 1000);
+            
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Ошибка восстановления шара:', error);
+        return false;
+    }
+}
+
+
         
         // ========== КОНСТАНТЫ ==========
         const ZONES = {
@@ -680,19 +769,27 @@
         });
 
         // === ВОССТАНОВЛЕНИЕ СОХРАНЕННОЙ ТОЧКИ ===
-        (function loadSavedStartPoint() {
-            try {
-                const saved = localStorage.getItem('balloon_start_point');
-                if (saved) {
-                    const { lat, lng } = JSON.parse(saved);
-                    map.setView([lat, lng], 10);
-                    
-                    setTimeout(async () => {
-                        map.fire('click', { latlng: { lat, lng } });
-                    }, 1000);
-                }
-            } catch (e) {}
-        })();
+       (async function loadSavedData() {
+    try {
+        // Сначала пробуем восстановить активный шар
+        const restored = await restoreBalloon();
+        
+        if (!restored) {
+            // Если нет активного шара, восстанавливаем только точку старта
+            const saved = localStorage.getItem('balloon_start_point');
+            if (saved) {
+                const { lat, lng } = JSON.parse(saved);
+                map.setView([lat, lng], 10);
+                
+                setTimeout(async () => {
+                    map.fire('click', { latlng: { lat, lng } });
+                }, 1000);
+            }
+        }
+    } catch (e) {
+        console.warn('Ошибка загрузки:', e);
+    }
+})();
 
         console.log('🎈 Симулятор готов! API_URL =', API_URL);
     </script>
