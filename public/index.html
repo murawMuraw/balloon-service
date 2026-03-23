@@ -293,6 +293,11 @@ async function restoreBalloon() {
     iconAnchor: [16, 16],
     popupAnchor: [0, -16]
 });        
+            balloonMarker = L.marker(balloonPosition, {
+    icon: balloonIcon,
+    zIndexOffset: 1000
+}).addTo(map);
+            
             // Центрируем карту на шаре
             map.setView(balloonPosition, 10);
             
@@ -620,6 +625,11 @@ async function restoreBalloon() {
     iconAnchor: [16, 16],
     popupAnchor: [0, -16]
 });
+
+                balloonMarker = L.marker(balloonPosition, {
+    icon: balloonIcon,
+    zIndexOffset: 1000
+}).addTo(map);
                 actualPathPoints = [balloonPosition];
                 
                 // Запускаем движение
