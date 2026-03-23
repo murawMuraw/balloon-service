@@ -288,16 +288,25 @@ async function restoreBalloon() {
             
             // Создаём маркер шара
             const balloonIcon = L.divIcon({
-                html: '🎈',
-                className: 'balloon-marker',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-            
-            balloonMarker = L.marker(balloonPosition, {
-                icon: balloonIcon,
-                zIndexOffset: 1000
-            }).addTo(map);
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" style="filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));">
+        <!-- Шар -->
+        <ellipse cx="18" cy="18" rx="14" ry="16" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
+        <!-- Блик на шаре -->
+        <ellipse cx="12" cy="14" rx="3" ry="4" fill="rgba(255,255,255,0.4)"/>
+        <!-- Верёвки от шара к корзине -->
+        <line x1="13" y1="28" x2="13" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <line x1="23" y1="28" x2="23" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <line x1="18" y1="30" x2="18" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <!-- Корзина -->
+        <rect x="10" y="38" width="16" height="8" fill="#DEB887" stroke="#8B4513" stroke-width="1"/>
+        <!-- Тень на корзине -->
+        <rect x="12" y="40" width="12" height="2" fill="#CD853F"/>
+    </svg>`,
+    className: 'balloon-marker',
+    iconSize: [36, 48],
+    iconAnchor: [18, 48],
+    popupAnchor: [0, -40]
+});
             
             // Центрируем карту на шаре
             map.setView(balloonPosition, 10);
@@ -620,16 +629,26 @@ async function restoreBalloon() {
                 }
                 
                 // Создаем маркер шара
-                const balloonIcon = L.icon({
-                    iconUrl: '/images/balloon.png',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
-                });
-                
-                balloonMarker = L.marker(balloonPosition, {
-                    icon: balloonIcon,
-                    zIndexOffset: 1000
-                }).addTo(map);
+               const balloonIcon = L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48" style="filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));">
+        <!-- Шар -->
+        <ellipse cx="18" cy="18" rx="14" ry="16" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
+        <!-- Блик на шаре -->
+        <ellipse cx="12" cy="14" rx="3" ry="4" fill="rgba(255,255,255,0.4)"/>
+        <!-- Верёвки от шара к корзине -->
+        <line x1="13" y1="28" x2="13" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <line x1="23" y1="28" x2="23" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <line x1="18" y1="30" x2="18" y2="38" stroke="#8B4513" stroke-width="1.5"/>
+        <!-- Корзина -->
+        <rect x="10" y="38" width="16" height="8" fill="#DEB887" stroke="#8B4513" stroke-width="1"/>
+        <!-- Тень на корзине -->
+        <rect x="12" y="40" width="12" height="2" fill="#CD853F"/>
+    </svg>`,
+    className: 'balloon-marker',
+    iconSize: [36, 48],
+    iconAnchor: [18, 48],
+    popupAnchor: [0, -40]
+});
                 
                 actualPathPoints = [balloonPosition];
                 
