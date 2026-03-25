@@ -391,7 +391,23 @@ app.get('/api/balloons', async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
-
+// Статистика для админа
+app.get('/api/stats', async (req, res) => {
+    try {
+        const activeCount = await pool.query('SELECT COUNT(*) FROM balloons WHERE is_flying = true');
+        const totalCount = await pool.query('SELECT COUNT(*) FROM balloons');
+        const usersCount = await pool.query('SELECT COUNT(DISTINCT user_id) FROM balloons WHERE is_flying = true');
+        
+        res.json({
+            active_balloons: parseInt(activeCount.rows[0].count),
+            total_balloons_ever: parseInt(totalCount.rows[0].count),
+            active_users: parseInt(usersCount.rows[0].count),
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // ========== WEBSOCKET ==========
 
 io.on('connection', (socket) => {
