@@ -286,6 +286,19 @@ app.get('/api/balloons', async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+// Получение информации о текущем пользователе
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.user.userId]);
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.status(404).json({ error: 'Пользователь не найден' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
 
 // ========== WEBSOCKET ==========
 
