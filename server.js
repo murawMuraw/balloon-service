@@ -391,6 +391,7 @@ app.get('/api/balloons', async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
 // Статистика для админа
 app.get('/api/stats', async (req, res) => {
     try {
@@ -408,6 +409,8 @@ app.get('/api/stats', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
 // ========== WEBSOCKET ==========
 
 io.on('connection', (socket) => {
