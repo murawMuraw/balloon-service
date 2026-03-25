@@ -5,15 +5,14 @@ const { Pool } = require('pg');
 const axios = require('axios');
 const cron = require('node-cron');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 // Middleware
@@ -26,6 +25,8 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-me-in-production';
 
 // ========== ФУНКЦИИ ==========
 
@@ -45,7 +46,7 @@ async function getWindData(lat, lng) {
     return null;
   } catch (error) {
     console.error('Ошибка получения ветра:', error.message);
-    // ВРЕМЕННО: возвращаем тестовые данные для разработки
+    // Возвращаем тестовые данные для разработки
     console.log('⚠️ Используем тестовые данные ветра');
     return {
       speed: 3.0,
@@ -57,19 +58,19 @@ async function getWindData(lat, lng) {
 
 // Функция расчета новой позиции
 function calculateNewPosition(lat, lng, windSpeed, windDirection, seconds) {
-  // Ветер дует ИЗ направления, шар летит ПО направлению +180°
   const windRad = (windDirection + 180) * Math.PI / 180;
-  const distance = windSpeed * seconds; // метры
+  const distance = windSpeed * seconds;
   const distanceKm = distance / 1000;
-  const R = 6371; // радиус Земли в км
+  const R = 6371;
   
   const lat1 = lat * Math.PI / 180;
   const lon1 = lng * Math.PI / 180;
+  const bearing = windRad;
   
   const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanceKm/R) + 
-                         Math.cos(lat1) * Math.sin(distanceKm/R) * Math.cos(windRad));
+                         Math.cos(lat1) * Math.sin(distanceKm/R) * Math.cos(bearing));
   
-  const lon2 = lon1 + Math.atan2(Math.sin(windRad) * Math.sin(distanceKm/R) * Math.cos(lat1), 
+  const lon2 = lon1 + Math.atan2(Math.sin(bearing) * Math.sin(distanceKm/R) * Math.cos(lat1), 
                                  Math.cos(distanceKm/R) - Math.sin(lat1) * Math.sin(lat2));
   
   return {
@@ -78,14 +79,43 @@ function calculateNewPosition(lat, lng, windSpeed, windDirection, seconds) {
   };
 }
 
+// ========== MIDDLEWARE АВТОРИЗАЦИИ ==========
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Требуется авторизация' });
+  }
+  
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Недействительный токен' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 
 async function initDb() {
   try {
+    // Таблица пользователей
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    
+    // Таблица шаров
     await pool.query(`
       CREATE TABLE IF NOT EXISTS balloons (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id TEXT NOT NULL,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         start_lat FLOAT,
         start_lng FLOAT,
         current_lat FLOAT,
@@ -129,7 +159,6 @@ cron.schedule('* * * * *', async () => {
           time: new Date() 
         });
         
-        // Сохраняем только последние 1000 точек пути
         const trimmedPath = path.slice(-1000);
         
         await pool.query(
@@ -144,7 +173,6 @@ cron.schedule('* * * * *', async () => {
           [newPos.lat, newPos.lng, wind.speed, wind.direction, JSON.stringify(trimmedPath), balloon.id]
         );
         
-        // Уведомляем клиентов через WebSocket
         io.to(`balloon-${balloon.id}`).emit('balloon-update', {
           lat: newPos.lat,
           lng: newPos.lng,
@@ -161,9 +189,9 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-// ========== API ENDPOINTS ==========
+// ========== ПУБЛИЧНЫЕ API ENDPOINTS ==========
 
-// Тестовый endpoint для проверки работы сервера
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -172,8 +200,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ========== ГЛАВНЫЙ ЭНДПОИНТ ВЕТРА (для фронтенда) ==========
-// ========== ЭНДПОИНТ ВЕТРА (с улучшенной обработкой) ==========
+// Получение ветра (публичный, не требует авторизации)
 app.get('/api/wind', async (req, res) => {
   const lat = parseFloat(req.query.lat);
   const lng = parseFloat(req.query.lon);
@@ -181,36 +208,133 @@ app.get('/api/wind', async (req, res) => {
   console.log(`🌬️ Запрос ветра: lat=${lat}, lon=${lng}`);
   
   if (isNaN(lat) || isNaN(lng)) {
-    console.log('❌ Некорректные координаты');
-    // ВСЕГДА возвращаем JSON, даже при ошибке
     return res.status(400).json({ error: 'Invalid coordinates' });
   }
   
   try {
     const wind = await getWindData(lat, lng);
-    
-    if (wind && wind.speed !== undefined) {
-      console.log(`✅ Ветер: ${wind.speed} м/с, направление ${wind.direction}°`);
-      res.json(wind);
-    } else {
-      // Если нет данных о ветре, возвращаем тестовые значения
-      console.log(`⚠️ Нет данных о ветре для (${lat}, ${lng}), используем тестовые`);
-      res.json({
-        speed: 2.5,
-        direction: 180,
-        gust: 0,
-        note: "test_data"
-      });
-    }
+    res.json(wind);
   } catch (error) {
     console.error('❌ Ошибка получения ветра:', error.message);
-    // ВСЕГДА возвращаем JSON с тестовыми данными вместо ошибки
-    res.json({
-      speed: 2.5,
-      direction: 180,
-      gust: 0,
-      note: "fallback_data"
-    });
+    res.status(500).json({ error: 'Failed to get wind data' });
+  }
+});
+
+// ========== АВТОРИЗАЦИЯ ==========
+
+// Регистрация
+app.post('/api/auth/register', async (req, res) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email и пароль обязательны' });
+  }
+  
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Пароль должен быть не менее 6 символов' });
+  }
+  
+  try {
+    const password_hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
+      [email, password_hash]
+    );
+    
+    const user = result.rows[0];
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({ token, user: { id: user.id, email: user.email } });
+  } catch (error) {
+    if (error.code === '23505') {
+      res.status(400).json({ error: 'Email уже зарегистрирован' });
+    } else {
+      console.error('Ошибка регистрации:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+});
+
+// Вход
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+    
+    const user = result.rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    
+    if (!valid) {
+      return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+    
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({ token, user: { id: user.id, email: user.email } });
+  } catch (error) {
+    console.error('Ошибка входа:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получение информации о текущем пользователе
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.user.userId]);
+    
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Пользователь не найден' });
+    }
+  } catch (error) {
+    console.error('Ошибка получения пользователя:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ========== API ШАРОВ (с авторизацией) ==========
+
+// Получение шара текущего пользователя
+app.get('/api/balloons/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM balloons WHERE user_id = $1 AND is_flying = true ORDER BY start_time DESC LIMIT 1',
+      [req.user.userId]
+    );
+    
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Шар не найден' });
+    }
+  } catch (error) {
+    console.error('Ошибка получения шара:', error.message);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получение шара по ID пользователя (для гостевого режима)
+app.get('/api/balloons/:userId', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM balloons WHERE user_id = $1 AND is_flying = true ORDER BY start_time DESC LIMIT 1',
+      [req.params.userId]
+    );
+    
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Шар не найден' });
+    }
+  } catch (error) {
+    console.error('Ошибка получения шара:', error.message);
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
@@ -244,25 +368,6 @@ app.post('/api/balloons', async (req, res) => {
   }
 });
 
-// Получение состояния шара пользователя
-app.get('/api/balloons/:userId', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM balloons WHERE user_id = $1 AND is_flying = true ORDER BY start_time DESC LIMIT 1',
-      [req.params.userId]
-    );
-    
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ error: 'Шар не найден' });
-    }
-  } catch (error) {
-    console.error('Ошибка получения шара:', error.message);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
 // Остановка полета
 app.post('/api/balloons/:id/stop', async (req, res) => {
   try {
@@ -285,19 +390,6 @@ app.get('/api/balloons', async (req, res) => {
     console.error('Ошибка получения шаров:', error.message);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
-});
-// Получение информации о текущем пользователе
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
-    try {
-        const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.user.userId]);
-        if (result.rows.length > 0) {
-            res.json(result.rows[0]);
-        } else {
-            res.status(404).json({ error: 'Пользователь не найден' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
 });
 
 // ========== WEBSOCKET ==========
@@ -322,4 +414,5 @@ server.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
   console.log(`📡 WebSocket готов к подключениям`);
   console.log(`🌍 OpenWeather API ключ: ${process.env.OPENWEATHER_API_KEY ? '✅ установлен' : '❌ не установлен'}`);
+  console.log(`🔐 JWT секрет: ${JWT_SECRET !== 'your-secret-key-change-me-in-production' ? '✅ установлен' : '⚠️ используйте стандартный'}`);
 });
