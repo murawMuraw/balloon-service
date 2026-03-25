@@ -545,9 +545,9 @@
             const pos3 = Math.min(1, hazeRadius / maxRadius);
             gradient.addColorStop(0, 'rgba(0,0,0,0)');
             gradient.addColorStop(pos1, 'rgba(0,0,0,0)');
-            gradient.addColorStop(pos2, 'rgba(100,100,100,0.1)');
-            gradient.addColorStop(pos3, 'rgba(50,50,50,0.1)');
-            gradient.addColorStop(1, 'rgba(30,30,30,0.4)');
+            gradient.addColorStop(pos2, 'rgba(100,100,100,0.5)');
+            gradient.addColorStop(pos3, 'rgba(50,50,50,0.5)');
+            gradient.addColorStop(1, 'rgba(30,30,30,0.5)');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
