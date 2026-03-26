@@ -565,6 +565,9 @@
                 if (pathLine) map.removeLayer(pathLine);
                 pathLine = L.polyline(actualPathPoints, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
             }
+            // Проверяем ближайший населённый пункт (не чаще 30 сек)
+           if (!lastPlaceCheck || Date.now() - lastPlaceCheck > 30000) {
+        checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
         }
         
         function updateCoordDisplay(lat, lng) {
@@ -702,6 +705,52 @@
             document.getElementById('hint').innerHTML = '👆 Кликните на карту, чтобы выбрать место старта';
             updateHaze(null);
         }
+
+        // Функция проверки места
+
+        let lastPlaceCheck = null;
+        let lastPlaceCoords = null;
+
+async function checkNearbyPlace(lat, lng) {
+    // Проверяем раз в 30 секунд или при изменении координат на > 5 км
+    const distanceFromLast = lastPlaceCoords ? 
+        map.distance(L.latLng(lat, lng), L.latLng(lastPlaceCoords.lat, lastPlaceCoords.lng)) : 0;
+    
+    if (lastPlaceCheck && distanceFromLast < 5000) {
+        return; // не проверяем чаще 5 км
+    }
+    
+    lastPlaceCoords = { lat, lng };
+    lastPlaceCheck = Date.now();
+    
+    try {
+        const response = await fetch(`${API_URL}/api/place?lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+        
+        const placeInfo = document.getElementById('placeInfo');
+        
+        if (data.found && data.name) {
+            placeInfo.style.display = 'block';
+            document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
+            document.getElementById('placeDesc').innerHTML = data.description.substring(0, 150) + (data.description.length > 150 ? '...' : '');
+            
+            if (data.image) {
+                document.getElementById('placeImage').innerHTML = `<img src="${data.image}" style="max-width: 100%; max-height: 80px; border-radius: 4px;">`;
+            } else {
+                document.getElementById('placeImage').innerHTML = '🖼️';
+            }
+            
+            // Автоматически скрываем через 30 секунд
+            setTimeout(() => {
+                if (document.getElementById('placeInfo').style.display !== 'none') {
+                    document.getElementById('placeInfo').style.display = 'none';
+                }
+            }, 30000);
+        }
+    } catch (error) {
+        console.error('Ошибка получения места:', error);
+    }
+}
         
         // ========== КАРТА ==========
         const map = L.map('map', { center: [52.12, 23.72], zoom: 8, zoomControl: true });
