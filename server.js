@@ -248,6 +248,75 @@ app.get('/api/wind', async (req, res) => {
   }
 });
 
+
+// Поиск ближайшего населённого пункта по координатам
+app.get('/api/place', async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lon);
+  
+  if (isNaN(lat) || isNaN(lng)) {
+    return res.status(400).json({ error: 'Invalid coordinates' });
+  }
+  
+  try {
+    // 1. Ищем ближайший населённый пункт через Nominatim (OSM)
+    const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`;
+    const osmResponse = await axios.get(osmUrl, {
+      headers: { 'User-Agent': 'BalloonSimulator/1.0' }
+    });
+    
+    const place = osmResponse.data.address;
+    let city = place.city || place.town || place.village || place.hamlet;
+    
+    if (!city) {
+      return res.json({ found: false });
+    }
+    
+    // 2. Получаем фото из Wikipedia
+    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+    
+    try {
+      const wikiResponse = await axios.get(wikiUrl);
+      const wikiData = wikiResponse.data;
+      
+      res.json({
+        found: true,
+        name: city,
+        country: place.country,
+        description: wikiData.extract || 'Нет описания',
+        image: wikiData.thumbnail?.source || null,
+        wikipedia_url: wikiData.content_urls?.desktop?.page || null
+      });
+    } catch (wikiError) {
+      // Если нет страницы на английском, пробуем русскую
+      const wikiRuUrl = `https://ru.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+      try {
+        const wikiRuResponse = await axios.get(wikiRuUrl);
+        const wikiRuData = wikiRuResponse.data;
+        res.json({
+          found: true,
+          name: city,
+          country: place.country,
+          description: wikiRuData.extract || 'Нет описания',
+          image: wikiRuData.thumbnail?.source || null,
+          wikipedia_url: wikiRuData.content_urls?.desktop?.page || null
+        });
+      } catch (e) {
+        res.json({
+          found: true,
+          name: city,
+          country: place.country,
+          description: 'Информация отсутствует',
+          image: null
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка получения места:', error.message);
+    res.json({ found: false });
+  }
+});
+
 // ========== АВТОРИЗАЦИЯ ==========
 
 // Регистрация
