@@ -569,7 +569,7 @@
            if (!lastPlaceCheck || Date.now() - lastPlaceCheck > 30000) {
         checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
         }
-        
+        }
         function updateCoordDisplay(lat, lng) {
             document.getElementById('coordinates').innerHTML = `Широта: ${lat.toFixed(6)}<br>Долгота: ${lng.toFixed(6)}`;
         }
