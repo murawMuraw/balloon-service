@@ -159,7 +159,7 @@ cron.schedule('* * * * *', async () => {
           time: new Date() 
         });
         
-        const trimmedPath = path.slice(-1000);
+        const trimmedPath = path.slice(-10000);
         
         await pool.query(
           `UPDATE balloons SET 
@@ -186,6 +186,34 @@ cron.schedule('* * * * *', async () => {
     }
   } catch (error) {
     console.error('❌ Ошибка фонового обновления:', error.message);
+  }
+});
+
+// Удаление старых шаров гостей (раз в день)
+cron.schedule('0 0 * * *', async () => {
+  console.log('🧹 Очистка старых шаров гостей...');
+  
+  try {
+    // Удаляем шары гостей (user_id начинается с "guest_"), 
+    // которые не обновлялись более 7 дней
+    const result = await pool.query(`
+      DELETE FROM balloons 
+      WHERE user_id LIKE 'guest_%' 
+        AND last_update < NOW() - INTERVAL '7 days'
+        AND is_flying = true
+      RETURNING id, user_id, last_update
+    `);
+    
+    if (result.rows.length > 0) {
+      console.log(`✅ Удалено ${result.rows.length} старых шаров гостей:`);
+      result.rows.forEach(row => {
+        console.log(`   - Шар ${row.id.substring(0, 8)} (гость ${row.user_id}), последнее обновление: ${row.last_update}`);
+      });
+    } else {
+      console.log('✨ Нет старых шаров для удаления');
+    }
+  } catch (error) {
+    console.error('❌ Ошибка очистки:', error.message);
   }
 });
 
