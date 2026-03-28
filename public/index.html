@@ -828,6 +828,19 @@ async function checkNearbyPlace(lat, lng) {
         window.addEventListener('resize', () => { if (balloonPosition && isFlying) updateHaze(balloonPosition); });
         
         console.log('🎈 Симулятор готов! Режим:', currentUser ? 'Авторизован' : 'Гость');
+
+        console.log('🎈 Симулятор готов! API_URL =', API_URL);
+
+// ========== ПИНГ ДЛЯ ПОДДЕРЖАНИЯ СЕРВЕРА ==========
+// Каждые 10 минут отправляем запрос к серверу, чтобы он не засыпал
+setInterval(() => {
+    fetch(`${API_URL}/api/health`)
+        .then(response => response.json())
+        .then(data => console.log('💓 Пинг сервера:', data.status))
+        .catch(err => console.warn('⚠️ Пинг не удался:', err));
+}, 600000); // 600000 мс = 10 минут
+
+console.log('🕐 Пинг настроен (каждые 10 минут)');
     </script>
 </body>
 </html>
