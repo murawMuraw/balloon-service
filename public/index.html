@@ -560,6 +560,60 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+
+// Проверка места
+        let lastPlaceCheck = null;
+let lastPlaceCoords = null;
+
+async function checkNearbyPlace(lat, lng) {
+    const now = Date.now();
+    if (lastPlaceCheck && (now - lastPlaceCheck) < 30000) {
+        console.log('⏳ Пропускаем проверку (было менее 30 сек назад)');
+        return;
+    }
+    lastPlaceCheck = now;
+    
+    console.log(`🔍 Проверка места: ${lat}, ${lng}`);
+    
+    try {
+        const response = await fetch(`${API_URL}/api/place?lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+        
+        const placeInfo = document.getElementById('placeInfo');
+        
+        if (data.found && data.name) {
+            console.log(`✅ Найдено место: ${data.name}`);
+            
+            placeInfo.style.display = 'block';
+            document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
+            document.getElementById('placeDesc').innerHTML = data.description ? data.description.substring(0, 200) + (data.description.length > 200 ? '...' : '') : 'Описание отсутствует';
+            
+            if (data.image) {
+                document.getElementById('placeImage').innerHTML = `<img src="${data.image}" style="max-width: 100%; max-height: 100px; border-radius: 8px; object-fit: cover;">`;
+            } else {
+                document.getElementById('placeImage').innerHTML = '🖼️ Нет фото';
+            }
+            
+            if (data.wikipedia_url) {
+                document.getElementById('placeLink').innerHTML = `<a href="${data.wikipedia_url}" target="_blank" style="font-size: 11px; color: #4285f4;">Подробнее на Wikipedia →</a>`;
+            } else {
+                document.getElementById('placeLink').innerHTML = '';
+            }
+            
+            setTimeout(() => {
+                if (placeInfo.style.display !== 'none') {
+                    placeInfo.style.display = 'none';
+                }
+            }, 30000);
+        } else {
+            console.log(`❌ Ничего не найдено для: ${lat}, ${lng}`);
+            placeInfo.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Ошибка получения места:', error);
+    }
+}////////////////////////////////
+
         
         function moveBalloon() {
             if (!isFlying || !balloonPosition || !currentWind) return;
@@ -715,51 +769,7 @@
             updateHaze(null);
         }
 
-        // Функция проверки места
 
-        let lastPlaceCheck = null;
-        let lastPlaceCoords = null;
-
-async function checkNearbyPlace(lat, lng) {
-    // Проверяем раз в 30 секунд или при изменении координат на > 5 км
-    const distanceFromLast = lastPlaceCoords ? 
-        map.distance(L.latLng(lat, lng), L.latLng(lastPlaceCoords.lat, lastPlaceCoords.lng)) : 0;
-    
-    if (lastPlaceCheck && distanceFromLast < 5000) {
-        return; // не проверяем чаще 5 км
-    }
-    
-    lastPlaceCoords = { lat, lng };
-    lastPlaceCheck = Date.now();
-    
-    try {
-        const response = await fetch(`${API_URL}/api/place?lat=${lat}&lon=${lng}`);
-        const data = await response.json();
-        
-        const placeInfo = document.getElementById('placeInfo');
-        
-        if (data.found && data.name) {
-            placeInfo.style.display = 'block';
-            document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
-            document.getElementById('placeDesc').innerHTML = data.description.substring(0, 150) + (data.description.length > 150 ? '...' : '');
-            
-            if (data.image) {
-                document.getElementById('placeImage').innerHTML = `<img src="${data.image}" style="max-width: 100%; max-height: 80px; border-radius: 4px;">`;
-            } else {
-                document.getElementById('placeImage').innerHTML = '🖼️';
-            }
-            
-            // Автоматически скрываем через 30 секунд
-            setTimeout(() => {
-                if (document.getElementById('placeInfo').style.display !== 'none') {
-                    document.getElementById('placeInfo').style.display = 'none';
-                }
-            }, 30000);
-        }
-    } catch (error) {
-        console.error('Ошибка получения места:', error);
-    }
-}
         
         // ========== КАРТА ==========
         const map = L.map('map', { center: [52.12, 23.72], zoom: 8, zoomControl: true });
