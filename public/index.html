@@ -318,10 +318,13 @@
 
     <div class="hint" id="hint">👆 Кликните на карту, чтобы выбрать место старта</div>
     <div class="loading" id="loading">Загрузка карты... 🗺️</div>
-    <div id="placeInfo" style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-radius: 6px; display: none;">
+    
+    <div id="placeInfo" style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; display: none; border-left: 3px solid #ff9800;">
     <div id="placeImage" style="text-align: center; margin-bottom: 8px;"></div>
-    <div id="placeName" style="font-weight: bold;"></div>
-    <div id="placeDesc" style="font-size: 11px; color: #666;"></div>
+    <div id="placeName" style="font-weight: bold; color: #333;"></div>
+    <div id="placeDesc" style="font-size: 12px; color: #666; margin-top: 5px;"></div>
+    <div id="placeLink" style="margin-top: 5px;"></div>
+</div>
 </div>
 
     <script>
@@ -565,6 +568,7 @@
             if (balloonMarker) balloonMarker.setLatLng(balloonPosition);
             updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
             updateHaze(balloonPosition);
+            checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
             if (actualPathPoints.length === 0 || map.distance(balloonPosition, actualPathPoints[actualPathPoints.length - 1]) > 10) {
                 actualPathPoints.push(balloonPosition);
                 if (pathLine) map.removeLayer(pathLine);
