@@ -199,7 +199,7 @@ cron.schedule('0 0 * * *', async () => {
     const result = await pool.query(`
       DELETE FROM balloons 
       WHERE user_id LIKE 'guest_%' 
-        AND last_update < NOW() - INTERVAL '7 days'
+        AND last_update < NOW() - INTERVAL '2 days'
         AND is_flying = true
       RETURNING id, user_id, last_update
     `);
@@ -267,50 +267,87 @@ app.get('/api/place', async (req, res) => {
     
     const place = osmResponse.data.address;
     let city = place.city || place.town || place.village || place.hamlet;
+    let country = place.country || '';
     
     if (!city) {
       return res.json({ found: false });
     }
     
-    // 2. Получаем фото из Wikipedia
-    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+    console.log(`🌍 Найден населённый пункт: ${city}, ${country}`);
     
+    // 2. Пытаемся получить информацию из Wikipedia на разных языках
+    let wikiData = null;
+    let imageUrl = null;
+    let description = null;
+    let wikipediaUrl = null;
+    
+    // Пробуем на русском
     try {
-      const wikiResponse = await axios.get(wikiUrl);
-      const wikiData = wikiResponse.data;
-      
-      res.json({
-        found: true,
-        name: city,
-        country: place.country,
-        description: wikiData.extract || 'Нет описания',
-        image: wikiData.thumbnail?.source || null,
-        wikipedia_url: wikiData.content_urls?.desktop?.page || null
-      });
-    } catch (wikiError) {
-      // Если нет страницы на английском, пробуем русскую
       const wikiRuUrl = `https://ru.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+      const wikiRuResponse = await axios.get(wikiRuUrl);
+      wikiData = wikiRuResponse.data;
+      description = wikiData.extract;
+      imageUrl = wikiData.thumbnail?.source;
+      wikipediaUrl = wikiData.content_urls?.desktop?.page;
+      console.log(`✅ Найдена русская страница: ${city}`);
+    } catch (e) {
+      // Пробуем на английском
       try {
-        const wikiRuResponse = await axios.get(wikiRuUrl);
-        const wikiRuData = wikiRuResponse.data;
-        res.json({
-          found: true,
-          name: city,
-          country: place.country,
-          description: wikiRuData.extract || 'Нет описания',
-          image: wikiRuData.thumbnail?.source || null,
-          wikipedia_url: wikiRuData.content_urls?.desktop?.page || null
-        });
-      } catch (e) {
-        res.json({
-          found: true,
-          name: city,
-          country: place.country,
-          description: 'Информация отсутствует',
-          image: null
-        });
+        const wikiEnUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+        const wikiEnResponse = await axios.get(wikiEnUrl);
+        wikiData = wikiEnResponse.data;
+        description = wikiData.extract;
+        imageUrl = wikiData.thumbnail?.source;
+        wikipediaUrl = wikiData.content_urls?.desktop?.page;
+        console.log(`✅ Найдена английская страница: ${city}`);
+      } catch (e2) {
+        // Пробуем на польском для Варшавы и других
+        try {
+          const wikiPlUrl = `https://pl.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
+          const wikiPlResponse = await axios.get(wikiPlUrl);
+          wikiData = wikiPlResponse.data;
+          description = wikiData.extract;
+          imageUrl = wikiData.thumbnail?.source;
+          wikipediaUrl = wikiData.content_urls?.desktop?.page;
+          console.log(`✅ Найдена польская страница: ${city}`);
+        } catch (e3) {
+          console.log(`⚠️ Нет страницы в Wikipedia для: ${city}`);
+        }
       }
     }
+    
+    // 3. Если нет фото, пытаемся найти через Wikimedia Commons
+    if (!imageUrl && city) {
+      try {
+        const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(city)}&prop=pageimages&format=json&pithumbsize=200&origin=*`;
+        const commonsResponse = await axios.get(commonsUrl);
+        const pages = commonsResponse.data.query.pages;
+        for (const pageId in pages) {
+          if (pages[pageId].thumbnail?.source) {
+            imageUrl = pages[pageId].thumbnail.source;
+            console.log(`🖼️ Найдено фото через Wikimedia: ${imageUrl}`);
+            break;
+          }
+        }
+      } catch (e) {
+        console.log('⚠️ Не удалось найти фото в Wikimedia');
+      }
+    }
+    
+    // 4. Если нет описания, используем информацию из Nominatim
+    if (!description && city) {
+      description = `${city}${country ? `, ${country}` : ''}. ${place.road ? `Район: ${place.road}.` : ''} ${place.suburb ? `Окрестности: ${place.suburb}.` : ''}`;
+    }
+    
+    res.json({
+      found: true,
+      name: city,
+      country: country,
+      description: description || 'Информация отсутствует',
+      image: imageUrl,
+      wikipedia_url: wikipediaUrl
+    });
+    
   } catch (error) {
     console.error('Ошибка получения места:', error.message);
     res.json({ found: false });
