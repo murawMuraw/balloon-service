@@ -249,6 +249,7 @@ app.get('/api/wind', async (req, res) => {
 });
 
 
+
 // Поиск ближайшего населённого пункта по координатам
 app.get('/api/place', async (req, res) => {
   const lat = parseFloat(req.query.lat);
@@ -353,7 +354,6 @@ app.get('/api/place', async (req, res) => {
     res.json({ found: false });
   }
 });
-
 // ========== АВТОРИЗАЦИЯ ==========
 
 // Регистрация
