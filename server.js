@@ -195,11 +195,11 @@ cron.schedule('0 0 * * *', async () => {
   
   try {
     // Удаляем шары гостей (user_id начинается с "guest_"), 
-    // которые не обновлялись более 7 дней
+    // которые не обновлялись более 7 дeнь
     const result = await pool.query(`
       DELETE FROM balloons 
       WHERE user_id LIKE 'guest_%' 
-        AND last_update < NOW() - INTERVAL '2 days'
+        AND last_update < NOW() - INTERVAL '1 day'
         AND is_flying = true
       RETURNING id, user_id, last_update
     `);
@@ -276,45 +276,57 @@ app.get('/api/place', async (req, res) => {
     
     console.log(`🌍 Найден населённый пункт: ${city}, ${country}`);
     
-    // 2. Пытаемся найти ссылку на Wikipedia
+    // 2. Умный поиск в Wikipedia
     let wikipediaUrl = null;
+    let finalTitle = city;
     
-    // Пробуем русскую Википедию
-    try {
-      const wikiRuUrl = `https://ru.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
-      const wikiRuResponse = await axios.get(wikiRuUrl);
-      wikipediaUrl = wikiRuResponse.data.content_urls?.desktop?.page;
-      console.log(`✅ Найдена русская страница: ${city}`);
-    } catch (e) {
-      // Пробуем английскую Википедию
+    // Список языков для поиска (приоритет: русский, английский, местный, другие)
+    const languagesToTry = ['ru', 'en', 'pl', 'uk', 'be', 'de', 'fr'];
+    
+    for (const lang of languagesToTry) {
       try {
-        const wikiEnUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
-        const wikiEnResponse = await axios.get(wikiEnUrl);
-        wikipediaUrl = wikiEnResponse.data.content_urls?.desktop?.page;
-        console.log(`✅ Найдена английская страница: ${city}`);
-      } catch (e2) {
-        // Пробуем местную Википедию (для Варшавы — польская)
-        const localLanguages = ['pl', 'uk', 'be', 'de', 'fr'];
-        for (const lang of localLanguages) {
-          try {
-            const wikiLocalUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(city)}`;
-            const wikiLocalResponse = await axios.get(wikiLocalUrl);
-            wikipediaUrl = wikiLocalResponse.data.content_urls?.desktop?.page;
-            if (wikipediaUrl) {
-              console.log(`✅ Найдена страница на ${lang}: ${city}`);
-              break;
-            }
-          } catch (e3) {}
+        // Кодируем название для URL
+        const encodedTitle = encodeURIComponent(city);
+        
+        // Используем API для поиска страницы (этот эндпоинт не возвращает 404, если страница не найдена)
+        const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodedTitle}&format=json&origin=*`;
+        const searchResponse = await axios.get(searchUrl);
+        
+        if (searchResponse.data.query.search.length > 0) {
+          // Берем первый (самый релевантный) результат поиска
+          const bestMatch = searchResponse.data.query.search[0];
+          const pageTitle = bestMatch.title;
+          
+          // Формируем URL страницы
+          wikipediaUrl = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pageTitle)}`;
+          finalTitle = pageTitle;
+          console.log(`✅ Найдена страница на ${lang}: "${pageTitle}"`);
+          break; // Выходим из цикла, как только нашли
         }
+      } catch (error) {
+        // Логируем ошибку, но продолжаем поиск на других языках
+        console.log(`⚠️ Ошибка поиска на ${lang}: ${error.message}`);
       }
     }
     
-    res.json({
-      found: true,
-      name: city,
-      country: country,
-      wikipedia_url: wikipediaUrl
-    });
+    // 3. Формируем ответ для фронтенда
+    if (wikipediaUrl) {
+      res.json({
+        found: true,
+        name: finalTitle, // Отправляем точное название из Википедии
+        country: country,
+        wikipedia_url: wikipediaUrl
+      });
+    } else {
+      // Если ничего не нашли, возвращаем город без ссылки
+      console.log(`❌ Не найдено страниц в Wikipedia для: ${city}`);
+      res.json({
+        found: true, // Город-то найден, даже если ссылки нет
+        name: city,
+        country: country,
+        wikipedia_url: null
+      });
+    }
     
   } catch (error) {
     console.error('Ошибка получения места:', error.message);
