@@ -390,24 +390,20 @@
         setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
 
         
-///// Закрытие рекламного баннера
-const closeAdBtn = document.getElementById('close-ad');
-if (closeAdBtn) {
-    closeAdBtn.addEventListener('click', () => {
-        document.getElementById('ad-container').style.display = 'none';
+////// Закрытие рекламного баннера
+//const closeAdBtn = document.getElementById('close-ad');
+//if (closeAdBtn) {
+   // closeAdBtn.addEventListener('click', () => {
+    //    document.getElementById('ad-container').style.display = 'none';
         // Сохраняем в localStorage, чтобы не показывать снова
-        localStorage.setItem('ad_closed', 'true');
-    });
+  //      localStorage.setItem('ad_closed', 'true');
+  //  });
     
     // Если баннер уже закрывали, не показываем
-    if (localStorage.getItem('ad_closed') === 'true') {
-        document.getElementById('ad-container').style.display = 'none';
-    }
-}
-
-
-
-
+ //   if (localStorage.getItem('ad_closed') === 'true') {
+ //       document.getElementById('ad-container').style.display = 'none';
+//    }
+//}
 
         
         
