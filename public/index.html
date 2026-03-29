@@ -266,6 +266,41 @@
 </head>
 <body>
     <div id="map"></div>
+    <!-- Рекламный баннер внизу -->
+<div id="ad-container" style="
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.95);
+    border-top: 2px solid #4285f4;
+    padding: 8px;
+    text-align: center;
+    z-index: 1500;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+">
+    <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+        <span style="color: #666;">Реклама</span>
+        <div id="ad-content" style="flex-grow: 1; max-width: 728px;">
+            <!-- Здесь будет код рекламы -->
+            <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
+                📢 <strong>Ваша реклама здесь</strong><br>
+                <span style="font-size: 11px; color: #999;">Свяжитесь с нами: ad@balloon-service.com</span>
+            </div>
+        </div>
+        <button id="close-ad" style="
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+        ">✕</button>
+    </div>
+</div>
+    
     <canvas id="haze-canvas"></canvas>
     
     <!-- Кнопка профиля (показывает статус) -->
