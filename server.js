@@ -195,10 +195,10 @@ cron.schedule('0 0 * * *', async () => {
   
   try {
     // Удаляем шары гостей (user_id начинается с "guest_"), 
-    // которые не обновлялись более 7 дeнь
+    // которые не обновлялись более 1 дeнь
     const result = await pool.query(`
       DELETE FROM balloons 
-      WHERE user_id LIKE 'guest_%' 
+      WHERE user_id LIKE 'user_%' 
         AND last_update < NOW() - INTERVAL '1 day'
         AND is_flying = true
       RETURNING id, user_id, last_update
