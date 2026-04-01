@@ -190,7 +190,30 @@ cron.schedule('* * * * *', async () => {
 });
 /////////////////////////////////////////////////////////////////////////
 // Удаление старых шаров гостей (раз в день)
-
+async function deleteOldGuests(days = 3) {
+  try {
+    // Удаляем только тех, у кого user_id начинается с 'guest_'
+    // И которые созданы более days дней назад
+    const result = await pool.query(`
+      DELETE FROM balloons 
+      WHERE user_id LIKE 'guest_%'
+        AND start_time < NOW() - INTERVAL '${days} days'
+        AND is_flying = true
+      RETURNING id, user_id, start_time
+    `);
+    
+    console.log(`✅ Удалено гостей (старше ${days} дней): ${result.rowCount}`);
+    result.rows.forEach(row => {
+      console.log(`   - ${row.user_id} | создан: ${row.start_time}`);
+    });
+    
+    return { deleted: result.rowCount, list: result.rows };
+    
+  } catch (error) {
+    console.error('❌ Ошибка очистки гостей:', error.message);
+    return { deleted: 0, error: error.message };
+  }
+}
 
 
 
@@ -447,69 +470,33 @@ app.get('/api/balloons', async (req, res) => {
 });
 
 // ========== АДМИНСКИЕ ЭНДПОИНТЫ ==========
-
-// Функция удаления гостей (общая)
-async function deleteOldGuests(days = 3) {
-  try {
-    // Получаем список удаляемых
-    const toDelete = await pool.query(`
-      SELECT id, user_id, start_time 
-      FROM balloons 
-      WHERE user_id NOT IN (SELECT id FROM users)
-        AND start_time < NOW() - INTERVAL '${days} days'
-        AND is_flying = true
-    `);
-    
-    if (toDelete.rows.length === 0) {
-      console.log(`✨ Нет гостей старше ${days} дней для удаления`);
-      return { deleted: 0, list: [] };
-    }
-    
-    // Удаляем
-    const result = await pool.query(`
-      DELETE FROM balloons 
-      WHERE user_id NOT IN (SELECT id FROM users)
-        AND start_time < NOW() - INTERVAL '${days} days'
-        AND is_flying = true
-      RETURNING id, user_id, start_time
-    `);
-    
-    console.log(`✅ Удалено гостей (старше ${days} дней): ${result.rowCount}`);
-    result.rows.forEach(row => {
-      console.log(`   - ${row.user_id} | создан: ${row.start_time}`);
-    });
-    
-    return { deleted: result.rowCount, list: result.rows };
-    
-  } catch (error) {
-    console.error('❌ Ошибка очистки гостей:', error.message);
-    return { deleted: 0, error: error.message };
-  }
-}
-
-// Админский эндпоинт для ручной очистки
+// удаление гостей
 app.get('/api/admin/clean-guests', async (req, res) => {
   const days = parseInt(req.query.days) || 3;
   const secret = req.query.secret;
   
-  // Защита: проверяем секретный ключ
   const ADMIN_SECRET = process.env.ADMIN_SECRET || 'my-secret-key-2024';
   
   if (!secret || secret !== ADMIN_SECRET) {
-    console.log(`❌ Неверный секретный ключ: ${secret}`);
-    return res.status(403).json({ 
-      error: 'Неверный секретный ключ',
-      hint: 'Добавьте ?secret=ваш_ключ в URL'
-    });
+    return res.status(403).json({ error: 'Неверный секретный ключ' });
   }
   
-  console.log(`🔧 [MANUAL] Запущена ручная очистка (гости старше ${days} дней)`);
+  // Диагностика: считаем кандидатов
+  const candidateCount = await pool.query(`
+    SELECT COUNT(*) FROM balloons 
+    WHERE user_id LIKE 'guest_%'
+      AND start_time < NOW() - INTERVAL '${days} days'
+      AND is_flying = true
+  `);
+  
+  console.log(`🔧 Кандидатов на удаление: ${candidateCount.rows[0].count}`);
   
   const result = await deleteOldGuests(days);
   
   res.json({
     success: true,
     deleted: result.deleted,
+    candidates: parseInt(candidateCount.rows[0].count),
     days: days,
     timestamp: new Date().toISOString(),
     list: result.list
