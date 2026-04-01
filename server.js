@@ -196,7 +196,7 @@ async function deleteOldGuests(days = 3) {
     // И которые созданы более days дней назад
     const result = await pool.query(`
       DELETE FROM balloons 
-      WHERE user_id LIKE 'guest_%'
+      WHERE user_id LIKE 'user_%'
         AND start_time < NOW() - INTERVAL '${days} days'
         AND is_flying = true
       RETURNING id, user_id, start_time
