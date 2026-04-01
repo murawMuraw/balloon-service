@@ -189,14 +189,14 @@ cron.schedule('* * * * *', async () => {
   }
 });
 /////////////////////////////////////////////////////////////////////////
-// Удаление старых шаров гостей (раз в день)
+// Удаление старых шаров гостей 
 async function deleteOldGuests(days = 3) {
   try {
     // Удаляем только тех, у кого user_id начинается с 'guest_'
     // И которые созданы более days дней назад
     const result = await pool.query(`
       DELETE FROM balloons 
-      WHERE user_id LIKE 'user_%'
+      WHERE user_id LIKE 'guest_%'
         AND start_time < NOW() - INTERVAL '${days} days'
         AND is_flying = true
       RETURNING id, user_id, start_time
@@ -254,7 +254,7 @@ app.get('/api/wind', async (req, res) => {
 // Поиск ближайшего населённого пункта по координатам
 app.get('/api/place', async (req, res) => {
   const lat = parseFloat(req.query.lat);
-  const lng = parseFloat(req.query.lng); // Убедитесь, что фронтенд шлет 'lon', а не 'lng'
+  const lng = parseFloat(req.query.lon); // Убедитесь, что фронтенд шлет 'lon', а не 'lng'
   
   if (isNaN(lat) || isNaN(lng)) {
     return res.status(400).json({ error: 'Invalid coordinates' });
