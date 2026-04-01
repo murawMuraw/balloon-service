@@ -190,49 +190,7 @@ cron.schedule('* * * * *', async () => {
 });
 /////////////////////////////////////////////////////////////////////////
 // Удаление старых шаров гостей (раз в день)
-// Автоматическая очистка гостей каждый день в 3:00
-cron.schedule('0 3 * * *', async () => {
-  console.log('🧹 [AUTO] Запущена плановая очистка гостей...');
-  await deleteOldGuests();
-});
-// Функция удаления гостей старше N дней
-async function deleteOldGuests(days = 3) {
-  try {
-    // Получаем список удаляемых
-    const toDelete = await pool.query(`
-      SELECT id, user_id, start_time 
-      FROM balloons 
-      WHERE user_id NOT IN (SELECT id FROM users)
-        AND start_time < NOW() - INTERVAL '${days} days'
-        AND is_flying = true
-    `);
-    
-    if (toDelete.rows.length === 0) {
-      console.log(`✨ Нет гостей старше ${days} дней для удаления`);
-      return { deleted: 0, list: [] };
-    }
-    
-    // Удаляем
-    const result = await pool.query(`
-      DELETE FROM balloons 
-      WHERE user_id NOT IN (SELECT id FROM users)
-        AND start_time < NOW() - INTERVAL '${days} days'
-        AND is_flying = true
-      RETURNING id, user_id, start_time
-    `);
-    
-    console.log(`✅ Удалено гостей (старше ${days} дней): ${result.rowCount}`);
-    result.rows.forEach(row => {
-      console.log(`   - ${row.user_id} | создан: ${row.start_time}`);
-    });
-    
-    return { deleted: result.rowCount, list: result.rows };
-    
-  } catch (error) {
-    console.error('❌ Ошибка очистки гостей:', error.message);
-    return { deleted: 0, error: error.message };
-  }
-}
+
 
 
 
@@ -487,17 +445,62 @@ app.get('/api/balloons', async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
-// Удаление гостевых шаров админом
+
+// ========== АДМИНСКИЕ ЭНДПОИНТЫ ==========
+
+// Функция удаления гостей (общая)
+async function deleteOldGuests(days = 3) {
+  try {
+    // Получаем список удаляемых
+    const toDelete = await pool.query(`
+      SELECT id, user_id, start_time 
+      FROM balloons 
+      WHERE user_id NOT IN (SELECT id FROM users)
+        AND start_time < NOW() - INTERVAL '${days} days'
+        AND is_flying = true
+    `);
+    
+    if (toDelete.rows.length === 0) {
+      console.log(`✨ Нет гостей старше ${days} дней для удаления`);
+      return { deleted: 0, list: [] };
+    }
+    
+    // Удаляем
+    const result = await pool.query(`
+      DELETE FROM balloons 
+      WHERE user_id NOT IN (SELECT id FROM users)
+        AND start_time < NOW() - INTERVAL '${days} days'
+        AND is_flying = true
+      RETURNING id, user_id, start_time
+    `);
+    
+    console.log(`✅ Удалено гостей (старше ${days} дней): ${result.rowCount}`);
+    result.rows.forEach(row => {
+      console.log(`   - ${row.user_id} | создан: ${row.start_time}`);
+    });
+    
+    return { deleted: result.rowCount, list: result.rows };
+    
+  } catch (error) {
+    console.error('❌ Ошибка очистки гостей:', error.message);
+    return { deleted: 0, error: error.message };
+  }
+}
+
 // Админский эндпоинт для ручной очистки
-app.post('/api/admin/clean-guests', async (req, res) => {
-  const days = parseInt(req.query.days) || 3; // по умолчанию 3 дня
+app.get('/api/admin/clean-guests', async (req, res) => {
+  const days = parseInt(req.query.days) || 3;
   const secret = req.query.secret;
   
-  // Простая защита (замените на свой секрет)
+  // Защита: проверяем секретный ключ
   const ADMIN_SECRET = process.env.ADMIN_SECRET || 'my-secret-key-2024';
   
-  if (secret !== ADMIN_SECRET) {
-    return res.status(403).json({ error: 'Неверный секретный ключ' });
+  if (!secret || secret !== ADMIN_SECRET) {
+    console.log(`❌ Неверный секретный ключ: ${secret}`);
+    return res.status(403).json({ 
+      error: 'Неверный секретный ключ',
+      hint: 'Добавьте ?secret=ваш_ключ в URL'
+    });
   }
   
   console.log(`🔧 [MANUAL] Запущена ручная очистка (гости старше ${days} дней)`);
@@ -513,6 +516,11 @@ app.post('/api/admin/clean-guests', async (req, res) => {
   });
 });
 
+// Автоматическая очистка каждый день в 3:00
+cron.schedule('0 3 * * *', async () => {
+  console.log('🧹 [AUTO] Запущена плановая очистка гостей...');
+  await deleteOldGuests(3);
+});
 
 // Статистика для админа
 app.get('/api/stats', async (req, res) => {
