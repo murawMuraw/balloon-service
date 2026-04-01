@@ -230,22 +230,26 @@ app.get('/api/wind', async (req, res) => {
 // Поиск ближайшего населённого пункта по координатам
 app.get('/api/place', async (req, res) => {
   const lat = parseFloat(req.query.lat);
-  const lng = parseFloat(req.query.lon);
+  const lng = parseFloat(req.query.lon); // Убедитесь, что фронтенд шлет 'lon', а не 'lng'
   
   if (isNaN(lat) || isNaN(lng)) {
     return res.status(400).json({ error: 'Invalid coordinates' });
   }
   
   try {
-    // 1. Ищем ближайший населённый пункт через Nominatim (OSM)
     const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`;
     const osmResponse = await axios.get(osmUrl, {
       headers: { 'User-Agent': 'BalloonSimulator/1.0' }
     });
     
     const place = osmResponse.data.address;
-    let city = place.city || place.town || place.village || place.hamlet;
-    let country = place.country || '';
+
+    if (!place) {
+      return res.json({ found: false });
+    }
+
+    const city = place.city || place.town || place.village || place.hamlet;
+    const country = place.country || '';
     
     if (!city) {
       return res.json({ found: false });
@@ -253,22 +257,21 @@ app.get('/api/place', async (req, res) => {
     
     console.log(`🌍 Найден населённый пункт: ${city}, ${country}`);
     
-   
-    
-    // 3. Формируем ответ для фронтенда
-  
-      res.json({
-        found: true, // Город-то найден, даже если ссылки нет
-        name: city,
-        country: country,
-      
-      });
-    }
-    
+    // Формируем ответ
+    res.json({
+      found: true,
+      name: city,
+      country: country,
+    });
+
   } catch (error) {
     console.error('Ошибка получения места:', error.message);
-    res.json({ found: false });
+    // Важно: если заголовки уже отправлены, не пытаемся отправить ответ снова
+    if (!res.headersSent) {
+      res.status(500).json({ found: false, error: 'Internal Server Error' });
+    }
   }
+}); 
 
 // ========== АВТОРИЗАЦИЯ ==========
 
