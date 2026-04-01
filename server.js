@@ -269,7 +269,7 @@ app.get('/api/place', async (req, res) => {
     console.error('Ошибка получения места:', error.message);
     res.json({ found: false });
   }
-});
+
 // ========== АВТОРИЗАЦИЯ ==========
 
 // Регистрация
