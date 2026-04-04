@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Воздушный шар - Яндекс.Карты</title>
+    <title>Воздушный шар - Яндекс.Карты (адаптированная версия)</title>
     <meta charset="utf-8" />
+    
+    <!-- Подключаем Яндекс.Карты API -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=57d7c8df-9f77-445d-8d31-b78bbd0a09b3&lang=ru_RU" type="text/javascript"></script>
     
     <style>
@@ -108,7 +110,7 @@
         let token = localStorage.getItem('token');
         let currentUser = null;
         
-        setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
+        // ВСЯ ЛОГИКА РАСЧЁТА ВЕТРА И ДВИЖЕНИЯ ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ
         
         function updateCoordDisplay(lat, lng) {
             document.getElementById('coordinates').innerHTML = `Широта: ${lat.toFixed(6)}<br>Долгота: ${lng.toFixed(6)}`;
@@ -151,11 +153,11 @@
             if (!wind) return;
             currentWind = wind;
             updateWindDisplay(wind);
-            let points = [[startPoint.lat, startPoint.lng]];
+            let points = [];
             let cur = startPoint;
-            for (let i = 1; i <= 12; i++) {
+            for (let i = 0; i <= 12; i++) {
+                points.push([cur.lat, cur.lng]);
                 const nxt = calculateNextPoint(cur, wind, 300);
-                points.push([nxt.lat, nxt.lng]);
                 cur = nxt;
             }
             if (forecastLine) map.geoObjects.remove(forecastLine);
@@ -177,10 +179,9 @@
             }
             updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
             
-            // Обновляем красную линию (пройденный путь)
             if (actualPathPoints.length === 0 || 
-                Math.abs(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0]) > 0.001 ||
-                Math.abs(balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.001) {
+                Math.abs(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0]) > 0.0005 ||
+                Math.abs(balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.0005) {
                 actualPathPoints.push([balloonPosition.lat, balloonPosition.lng]);
                 if (pathLine) map.geoObjects.remove(pathLine);
                 pathLine = new ymaps.Polyline(actualPathPoints, {}, { 
@@ -250,12 +251,10 @@
                 statusDiv.innerHTML = '🎈 В ПОЛЁТЕ';
                 document.getElementById('hint').style.display = 'none';
                 
-                // Сохраняем состояние в localStorage
                 localStorage.setItem('balloon_flying', 'true');
                 localStorage.setItem('balloon_id', balloonId);
                 localStorage.setItem('balloon_lat', balloonPosition.lat);
                 localStorage.setItem('balloon_lng', balloonPosition.lng);
-                localStorage.setItem('balloon_path', JSON.stringify(actualPathPoints));
                 
             } catch (err) {
                 console.error(err);
@@ -270,14 +269,9 @@
             if (!savedFlying || savedFlying !== 'true') return false;
             
             const savedId = localStorage.getItem('balloon_id');
-            const savedLat = parseFloat(localStorage.getItem('balloon_lat'));
-            const savedLng = parseFloat(localStorage.getItem('balloon_lng'));
-            const savedPath = localStorage.getItem('balloon_path');
-            
-            if (!savedId || isNaN(savedLat) || isNaN(savedLng)) return false;
+            if (!savedId) return false;
             
             try {
-                // Проверяем шар на сервере
                 const res = await fetch(`${API_URL}/api/balloons/${savedId}`);
                 if (res.status === 404) return false;
                 const balloon = await res.json();
@@ -350,12 +344,10 @@
             currentWind = null;
             balloonId = null;
             
-            // Очищаем localStorage
             localStorage.removeItem('balloon_flying');
             localStorage.removeItem('balloon_id');
             localStorage.removeItem('balloon_lat');
             localStorage.removeItem('balloon_lng');
-            localStorage.removeItem('balloon_path');
             
             document.getElementById('coordinates').innerHTML = 'Широта: --<br>Долгота: --';
             updateWindDisplay(null);
@@ -366,7 +358,7 @@
             document.getElementById('hint').innerHTML = '👆 Кликните на карту, чтобы выбрать место старта';
         }
         
-        // Авторизация
+        // Авторизация (упрощённая)
         function showAuthModal(show) { document.getElementById('authModal').classList.toggle('hidden', !show); }
         function updateProfileUI() { document.getElementById('profileStatus').textContent = currentUser ? currentUser.email : 'Гость'; }
         async function login(email, password) {
@@ -434,8 +426,10 @@
                 controls: ['zoomControl', 'typeSelector']
             });
             
+            // По умолчанию включаем спутник
             map.setType('yandex#satellite');
             
+            // Клик по карте для выбора точки старта
             map.events.add('click', async (e) => {
                 if (isFlying) return;
                 const coords = e.get('coords');
@@ -493,7 +487,9 @@
         
         updateProfileUI();
         setInterval(() => fetch(`${API_URL}/api/health`).catch(()=>{}), 600000);
-        console.log('🎈 Готово!');
+        
+        setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
+        console.log('🎈 Готово! Яндекс.Карты активны');
     </script>
 </body>
 </html>
