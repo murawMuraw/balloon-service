@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Воздушный шар - Яндекс.Карты</title>
+    <title>Воздушный шар - Яндекс.Карты (Спутник)</title>
     <meta charset="utf-8" />
     <script src="https://api-maps.yandex.ru/2.1/?apikey=57d7c8df-9f77-445d-8d31-b78bbd0a09b3&lang=ru_RU" type="text/javascript"></script>
     
@@ -297,16 +297,24 @@
         
         // Инициализация карты
         ymaps.ready(() => {
-            map = new ymaps.Map('map', { center: [53.9, 27.56], zoom: 10, controls: ['zoomControl'] });
+            map = new ymaps.Map('map', { 
+                center: [53.9, 27.56], 
+                zoom: 10, 
+                controls: ['zoomControl', 'typeSelector']  // добавляем переключатель типов карты
+            });
             
-            // Включаем спутник с задержкой, после полной инициализации
-            setTimeout(() => {
-                try {
-                    map.setType('satellite');
-                } catch(e) {
-                    console.warn('Не удалось включить спутник:', e);
-                }
-            }, 500);
+            // Включаем спутниковый слой правильным способом
+            map.controls.add('typeSelector', { position: { right: 10, top: 10 } });
+            
+            // Добавляем доступные типы карт
+            map.options.set('types', {
+                'yandex#map': 'Схема',
+                'yandex#satellite': 'Спутник',
+                'yandex#hybrid': 'Гибрид'
+            });
+            
+            // По умолчанию показываем спутник
+            map.setType('yandex#satellite');
             
             map.events.add('click', async (e) => {
                 if (isFlying) return;
