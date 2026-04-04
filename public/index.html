@@ -325,6 +325,7 @@
 
     <script>
         // ========== ОПРЕДЕЛЕНИЕ ЯЗЫКА ПО IP ==========
+              
         let language = 'ru'; // по умолчанию русский
         
         // Страны СНГ
@@ -372,20 +373,6 @@
                 panelTitle.innerHTML = language === 'ru' ? '🎈 Воздушный шар' : '🎈 Balloon Flight Simulator';
             }
             
-            // Заголовки координат
-            const coordDisplay = document.getElementById('coordinates');
-            if (coordDisplay && coordDisplay.innerHTML.includes('Широта')) {
-                if (language === 'en') {
-                    const lat = coordDisplay.innerHTML.match(/Широта: ([\d\.-]+)/)?.[1] || '--';
-                    const lng = coordDisplay.innerHTML.match(/Долгота: ([\d\.-]+)/)?.[1] || '--';
-                    coordDisplay.innerHTML = `Latitude: ${lat}<br>Longitude: ${lng}`;
-                }
-            } else if (coordDisplay && language === 'ru') {
-                const lat = coordDisplay.innerHTML.match(/Latitude: ([\d\.-]+)/)?.[1] || '--';
-                const lng = coordDisplay.innerHTML.match(/Longitude: ([\d\.-]+)/)?.[1] || '--';
-                coordDisplay.innerHTML = `Широта: ${lat}<br>Долгота: ${lng}`;
-            }
-            
             // Подсказка внизу
             const hint = document.getElementById('hint');
             if (hint) {
@@ -405,6 +392,18 @@
             } else if (flightStatus && flightStatus.innerHTML === '⏸️ Waiting for start') {
                 flightStatus.innerHTML = language === 'ru' ? '⏸️ Ожидание старта' : '⏸️ Waiting for start';
             }
+            
+            // Координаты
+            const coordDisplay = document.getElementById('coordinates');
+            if (coordDisplay && coordDisplay.innerHTML.includes('Широта') && language === 'en') {
+                const lat = coordDisplay.innerHTML.match(/Широта: ([\d\.-]+)/)?.[1] || '--';
+                const lng = coordDisplay.innerHTML.match(/Долгота: ([\d\.-]+)/)?.[1] || '--';
+                coordDisplay.innerHTML = `Latitude: ${lat}<br>Longitude: ${lng}`;
+            } else if (coordDisplay && coordDisplay.innerHTML.includes('Latitude') && language === 'ru') {
+                const lat = coordDisplay.innerHTML.match(/Latitude: ([\d\.-]+)/)?.[1] || '--';
+                const lng = coordDisplay.innerHTML.match(/Longitude: ([\d\.-]+)/)?.[1] || '--';
+                coordDisplay.innerHTML = `Широта: ${lat}<br>Долгота: ${lng}`;
+            }
         }
         
         // Функция обновления статуса полёта (вызывается из основного кода)
@@ -423,6 +422,7 @@
                 flightStatus.className = 'flight-status status-waiting';
             }
         }
+     
         
         // ========== НАСТРОЙКИ ==========
         const API_URL = window.location.origin;
@@ -451,7 +451,7 @@
         setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
         
         // Определяем язык перед инициализацией
-        await detectLanguage();
+       detectLanguage();
         
         // ========== ФУНКЦИИ АВТОРИЗАЦИИ ==========
         function showAuthModal(show = true) {
