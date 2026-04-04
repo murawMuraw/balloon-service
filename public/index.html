@@ -355,6 +355,7 @@
         }
         
         // Функция применения переводов
+               // Функция применения переводов
         function applyTranslations() {
             // Кнопки
             const startBtn = document.getElementById('startBtn');
@@ -403,6 +404,50 @@
                 const lat = coordDisplay.innerHTML.match(/Latitude: ([\d\.-]+)/)?.[1] || '--';
                 const lng = coordDisplay.innerHTML.match(/Longitude: ([\d\.-]+)/)?.[1] || '--';
                 coordDisplay.innerHTML = `Широта: ${lat}<br>Долгота: ${lng}`;
+            }
+            
+            // === НАЗВАНИЯ СЛОЁВ КАРТЫ ===
+            const layerControl = document.querySelector('.leaflet-control-layers');
+            if (layerControl) {
+                const layers = layerControl.querySelectorAll('.leaflet-control-layers-selector');
+                const labels = layerControl.querySelectorAll('.leaflet-control-layers-label');
+                
+                if (language === 'ru') {
+                    if (labels[0]) labels[0].innerHTML = '🛰️ Спутник ESRI';
+                    if (labels[1]) labels[1].innerHTML = '🗺️ Схема OSM';
+                } else {
+                    if (labels[0]) labels[0].innerHTML = '🛰️ Satellite ESRI';
+                    if (labels[1]) labels[1].innerHTML = '🗺️ Street OSM';
+                }
+            }
+            
+            // === РЕКЛАМНЫЙ БАННЕР ===
+            const adContainer = document.getElementById('ad-container');
+            if (adContainer) {
+                const adSpan = adContainer.querySelector('span');
+                const adContent = document.getElementById('ad-content');
+                
+                if (language === 'ru') {
+                    if (adSpan) adSpan.innerHTML = 'Реклама';
+                    if (adContent) {
+                        adContent.innerHTML = `
+                            <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
+                                📢 <strong>Ваша реклама здесь</strong><br>
+                                <span style="font-size: 11px; color: #999;">Свяжитесь с нами: ad@balloon-service.com</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    if (adSpan) adSpan.innerHTML = 'Advertisement';
+                    if (adContent) {
+                        adContent.innerHTML = `
+                            <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
+                                📢 <strong>Your ad here</strong><br>
+                                <span style="font-size: 11px; color: #999;">Contact us: ad@balloon-service.com</span>
+                            </div>
+                        `;
+                    }
+                }
             }
         }
         
@@ -858,6 +903,35 @@
             "🗺️ Схема OSM": osmStandard 
         }, null, { position: 'topleft', collapsed: false }).addTo(map);
         L.control.scale({ metric: true, position: 'bottomleft' }).addTo(map);
+
+
+            <!-- Рекламный баннер внизу -->
+    <div id="ad-container" style="
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255,255,255,0.95);
+        border-top: 2px solid #4285f4;
+        padding: 8px;
+        text-align: center;
+        z-index: 1500;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+    ">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+            <span style="color: #666;">Реклама</span>
+            <div id="ad-content" style="flex-grow: 1; max-width: 728px;">
+                <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
+                    📢 <strong>Ваша реклама здесь</strong><br>
+                    <span style="font-size: 11px; color: #999;">Свяжитесь с нами: ad@balloon-service.com</span>
+                </div>
+            </div>
+            <button id="close-ad" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #999;">✕</button>
+        </div>
+    </div>
         
         // ========== СОБЫТИЯ ==========
         map.on('click', async function(e) {
