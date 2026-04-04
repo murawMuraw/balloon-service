@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Воздушный шар - Яндекс.Карты (Спутник)</title>
+    <title>Воздушный шар - Яндекс.Карты</title>
     <meta charset="utf-8" />
     <script src="https://api-maps.yandex.ru/2.1/?apikey=57d7c8df-9f77-445d-8d31-b78bbd0a09b3&lang=ru_RU" type="text/javascript"></script>
     
@@ -110,8 +110,6 @@
         let token = localStorage.getItem('token');
         let currentUser = null;
         
-        const ZONES = { BRIGHT: 5000, MEDIUM: 10000, HAZE: 15000 };
-        
         setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
         
         function updateCoordDisplay(lat, lng) {
@@ -167,28 +165,10 @@
             map.geoObjects.add(forecastLine);
         }
         
+        // Дымка отключена (canvas не используется)
         function updateHaze(center) {
-            const canvas = document.getElementById('haze-canvas');
-            const ctx = canvas.getContext('2d');
-            if (!map || !map.container) return;
-            canvas.width = map.container.getSize().width;
-            canvas.height = map.container.getSize().height;
-            if (!center || !isFlying) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
-            const px = map.options.projection.toGlobalPixels([center.lat, center.lng], map.getZoom());
-            const maxR = Math.max(canvas.width, canvas.height) * 1.5;
-            const grad = ctx.createRadialGradient(px[0], px[1], 0, px[0], px[1], maxR);
-            const mPerPx = 40075016.686 / Math.pow(2, map.getZoom() + 8);
-            const r1 = Math.min(1, ZONES.BRIGHT / mPerPx / maxR);
-            const r2 = Math.min(1, ZONES.MEDIUM / mPerPx / maxR);
-            const r3 = Math.min(1, ZONES.HAZE / mPerPx / maxR);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(r1, 'rgba(0,0,0,0)');
-            grad.addColorStop(r2, 'rgba(100,100,100,0.1)');
-            grad.addColorStop(r3, 'rgba(50,50,50,0.5)');
-            grad.addColorStop(1, 'rgba(30,30,30,0.7)');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Функция оставлена пустой, чтобы не было ошибок
+            return;
         }
         
         function moveBalloon() {
@@ -197,8 +177,11 @@
             balloonPosition = nxt;
             if (balloonMarker) balloonMarker.geometry.setCoordinates([balloonPosition.lat, balloonPosition.lng]);
             updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
-            updateHaze(balloonPosition);
-            if (actualPathPoints.length === 0 || Math.hypot(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0], balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.001) {
+            
+            // Добавляем точку в пройденный путь
+            if (actualPathPoints.length === 0 || 
+                Math.abs(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0]) > 0.01 ||
+                Math.abs(balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.01) {
                 actualPathPoints.push([balloonPosition.lat, balloonPosition.lng]);
                 if (pathLine) map.geoObjects.remove(pathLine);
                 pathLine = new ymaps.Polyline(actualPathPoints, {}, { strokeColor: '#ff4444', strokeWidth: 4, strokeOpacity: 0.8 });
@@ -240,7 +223,6 @@
                 statusDiv.className = 'flight-status status-flying';
                 statusDiv.innerHTML = '🎈 В ПОЛЁТЕ';
                 document.getElementById('hint').style.display = 'none';
-                updateHaze(balloonPosition);
             } catch (err) {
                 console.error(err);
                 alert('Ошибка: ' + err.message);
@@ -269,7 +251,6 @@
             document.getElementById('flightStatus').innerHTML = '⏸️ Ожидание старта';
             document.getElementById('hint').style.display = 'block';
             document.getElementById('hint').innerHTML = '👆 Кликните на карту, чтобы выбрать место старта';
-            updateHaze(null);
         }
         
         // Авторизация
@@ -300,17 +281,7 @@
             map = new ymaps.Map('map', { 
                 center: [53.9, 27.56], 
                 zoom: 10, 
-                controls: ['zoomControl', 'typeSelector']  // добавляем переключатель типов карты
-            });
-            
-            // Включаем спутниковый слой правильным способом
-            map.controls.add('typeSelector', { position: { right: 10, top: 10 } });
-            
-            // Добавляем доступные типы карт
-            map.options.set('types', {
-                'yandex#map': 'Схема',
-                'yandex#satellite': 'Спутник',
-                'yandex#hybrid': 'Гибрид'
+                controls: ['zoomControl', 'typeSelector']
             });
             
             // По умолчанию показываем спутник
