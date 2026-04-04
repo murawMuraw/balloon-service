@@ -517,9 +517,7 @@
                     document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
                     if (data.wikipedia_url) {
                         document.getElementById('placeLink').innerHTML = `<a href="${data.wikipedia_url}" target="_blank">📖 ${language === 'ru' ? 'Посмотреть в Википедии' : 'View on Wikipedia'} →</a>`;
-                    } else {
-                        document.getElementById('placeLink').innerHTML = `<span style="color:#999;">${ }</span>`;
-                    }
+                    } 
                     setTimeout(() => { if (placeInfo.style.display !== 'none') placeInfo.style.display = 'none'; }, 30000);
                 } else { placeInfo.style.display = 'none'; }
             } catch(e) { console.error('Place error:', e); }
