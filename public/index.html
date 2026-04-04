@@ -285,8 +285,8 @@
                 const labels = document.querySelectorAll('.leaflet-control-layers-label');
                 if (labels.length >= 2) {
                     if (language === 'ru') {
-                        labels[0].innerHTML = '🛰️ Спутник ESRI';
-                        labels[1].innerHTML = '🗺️ Схема OSM';
+                        labels[0].innerHTML = '🛰️ Satellite ESRI';
+                        labels[1].innerHTML = '🗺️ Maps OSM';
                     } else {
                         labels[0].innerHTML = '🛰️ Satellite ESRI';
                         labels[1].innerHTML = '🗺️ Street OSM';
@@ -518,7 +518,7 @@
                     if (data.wikipedia_url) {
                         document.getElementById('placeLink').innerHTML = `<a href="${data.wikipedia_url}" target="_blank">📖 ${language === 'ru' ? 'Посмотреть в Википедии' : 'View on Wikipedia'} →</a>`;
                     } else {
-                        document.getElementById('placeLink').innerHTML = `<span style="color:#999;">${language === 'ru' ? 'Нет страницы в Википедии' : 'No Wikipedia page'}</span>`;
+                        document.getElementById('placeLink').innerHTML = `<span style="color:#999;">${ }</span>`;
                     }
                     setTimeout(() => { if (placeInfo.style.display !== 'none') placeInfo.style.display = 'none'; }, 30000);
                 } else { placeInfo.style.display = 'none'; }
