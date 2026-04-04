@@ -1,328 +1,261 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Воздушный шар - Симулятор полета</title>
+    <title>Воздушный шар - Симулятор полета (Яндекс.Карты)</title>
     <meta charset="utf-8" />
     
-    <!-- Подключаем Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Подключаем Яндекс.Карты API -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=57d7c8df-9f77-445d-8d31-b78bbd0a09b3&lang=ru_RU" type="text/javascript"></script>
     
-   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    
-    #map { height: 100%; width: 100%; background: #2a2a2a; position: relative; z-index: 1; }
-    #haze-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
-    
-    /* Кнопка профиля - справа вверху */
-    .profile-btn {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: white;
-        border: 2px solid #4285f4;
-        padding: 8px 16px;
-        border-radius: 30px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        z-index: 2000;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .profile-btn:hover { background: #f0f0f0; }
-    
-    /* Левые кнопки */
-    .left-controls {
-        position: absolute;
-        top: 20px;
-        left: 30px;
-        z-index: 2000;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .custom-button {
-        background: white;
-        border: 2px solid #4285f4;
-        padding: 10px 20px;
-        cursor: pointer;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
-        color: #333;
-        transition: all 0.2s;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        min-width: 150px;
-        text-align: center;
-    }
-    
-    .custom-button:hover { background: #f0f0f0; transform: scale(1.02); }
-    .custom-button:disabled { background: #ccc; border-color: #999; cursor: not-allowed; opacity: 0.5; }
-    
-    /* Информационная панель - справа, ниже кнопки профиля */
-    .info-panel {
-        position: absolute;
-        top: 80px;
-        right: 20px;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        z-index: 2000;
-        font-family: Arial, sans-serif;
-        min-width: 220px;
-    }
-    
-    .coord-display {
-        background: #f0f0f0;
-        padding: 10px;
-        border-radius: 6px;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        margin: 10px 0;
-        border-left: 3px solid #4285f4;
-    }
-    
-    .wind-info {
-        background: #e3f2fd;
-        padding: 8px;
-        border-radius: 6px;
-        margin-top: 10px;
-        font-size: 13px;
-        border-left: 3px solid #2196f3;
-    }
-    
-    .flight-status {
-        margin-top: 10px;
-        padding: 8px;
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-    }
-    
-    .status-ready { background: #fff3cd; color: #856404; }
-    .status-flying { background: #d4edda; color: #155724; }
-    .status-waiting { background: #e3f2fd; color: #0d47a1; }
-    
-    .hint {
-        position: absolute;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 30px;
-        font-size: 14px;
-        z-index: 2000;
-        backdrop-filter: blur(5px);
-        pointer-events: none;
-    }
-    
-    .loading {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        z-index: 3000;
-    }
-    
-    /* Модальное окно авторизации */
-    .auth-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(5px);
-        z-index: 10000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .auth-modal.hidden { display: none; }
-    
-    .auth-container {
-        background: white;
-        border-radius: 20px;
-        padding: 30px;
-        width: 90%;
-        max-width: 400px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-    
-    .auth-tabs {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 25px;
-        border-bottom: 2px solid #eee;
-    }
-    
-    .auth-tab {
-        flex: 1;
-        text-align: center;
-        padding: 10px;
-        cursor: pointer;
-        font-weight: bold;
-        color: #666;
-    }
-    
-    .auth-tab.active { color: #4285f4; border-bottom: 2px solid #4285f4; margin-bottom: -2px; }
-    
-    .auth-form { display: flex; flex-direction: column; gap: 15px; }
-    .auth-form.hidden { display: none; }
-    
-    .auth-form input {
-        padding: 12px 15px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        font-size: 16px;
-        outline: none;
-    }
-    
-    .auth-form input:focus { border-color: #4285f4; }
-    
-    .auth-form button {
-        background: #4285f4;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    
-    .auth-form button:hover { background: #5a95f5; }
-    
-    .auth-error { color: #f44336; font-size: 14px; text-align: center; }
-    
-    .user-info {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: rgba(255,255,255,0.95);
-        padding: 8px 15px;
-        border-radius: 30px;
-        z-index: 2000;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    
-    .logout-btn {
-        background: #f44336;
-        color: white;
-        border: none;
-        padding: 4px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-        font-size: 12px;
-    }
-    
-    .guest-badge {
-        background: #ff9800;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-    }
-    
-    .leaflet-control-layers {
-        background: white !important;
-        border: 2px solid #4285f4 !important;
-        border-radius: 8px !important;
-        width: 180px !important;
-        position: relative !important;
-        left: 20px !important;
-        top: 70px !important;
-    }
-    
-    .leaflet-control-scale {
-        background: rgba(255,255,255,0.8);
-        padding: 4px 8px;
-        border-radius: 4px;
-    }
-    
-    .balloon-marker {
-        font-size: 24px;
-        text-shadow: 0 0 10px rgba(255,255,255,0.8);
-    }
-</style>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #map { height: 100%; width: 100%; background: #2a2a2a; position: relative; z-index: 1; }
+        #haze-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
+        
+        /* Кнопка профиля */
+        .profile-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #4285f4;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .profile-btn:hover { background: #f0f0f0; }
+        
+        .left-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .custom-button {
+            background: white;
+            border: 2px solid #4285f4;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            transition: all 0.2s;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 150px;
+            text-align: center;
+        }
+        
+        .custom-button:hover { background: #f0f0f0; transform: scale(1.02); }
+        .custom-button:disabled { background: #ccc; border-color: #999; cursor: not-allowed; opacity: 0.5; }
+        
+        .info-panel {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 2000;
+            font-family: Arial, sans-serif;
+            min-width: 220px;
+        }
+        
+        .coord-display {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            border-left: 3px solid #4285f4;
+        }
+        
+        .wind-info {
+            background: #e3f2fd;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 13px;
+            border-left: 3px solid #2196f3;
+        }
+        
+        .flight-status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status-ready { background: #fff3cd; color: #856404; }
+        .status-flying { background: #d4edda; color: #155724; }
+        .status-waiting { background: #e3f2fd; color: #0d47a1; }
+        
+        .hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 3000;
+        }
+        
+        .auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .auth-modal.hidden { display: none; }
+        
+        .auth-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .auth-tab.active { color: #4285f4; border-bottom: 2px solid #4285f4; margin-bottom: -2px; }
+        
+        .auth-form { display: flex; flex-direction: column; gap: 15px; }
+        .auth-form.hidden { display: none; }
+        
+        .auth-form input {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        .auth-form input:focus { border-color: #4285f4; }
+        
+        .auth-form button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .auth-form button:hover { background: #5a95f5; }
+        
+        .auth-error { color: #f44336; font-size: 14px; text-align: center; }
+        
+        .balloon-marker {
+            font-size: 32px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        
+        #placeInfo {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            display: none;
+            border-left: 3px solid #ff9800;
+        }
+        
+        #placeLink a {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #e3f2fd;
+            border-radius: 20px;
+            transition: background 0.2s;
+            font-size: 12px;
+            color: #4285f4;
+            text-decoration: none;
+        }
+        
+        #placeLink a:hover {
+            background: #4285f4;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div id="map"></div>
-    <!-- Рекламный баннер внизу -->
-<div id="ad-container" style="
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(255,255,255,0.95);
-    border-top: 2px solid #4285f4;
-    padding: 8px;
-    text-align: center;
-    z-index: 1500;
-    font-family: Arial, sans-serif;
-    font-size: 12px;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    backdrop-filter: blur(10px);
-">
-    <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
-        <span style="color: #666;">Реклама</span>
-        <div id="ad-content" style="flex-grow: 1; max-width: 728px;">
-            <!-- Здесь будет код рекламы -->
-            <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
-                📢 <strong>Ваша реклама здесь</strong><br>
-                <span style="font-size: 11px; color: #999;">Свяжитесь с нами: ad@balloon-service.com</span>
-            </div>
-        </div>
-        <button id="close-ad" style="
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            color: #999;
-        ">✕</button>
-    </div>
-</div>
-    
     <canvas id="haze-canvas"></canvas>
     
-    <!-- Кнопка профиля (показывает статус) -->
     <div id="profileButton" class="profile-btn">
         <span>👤</span> <span id="profileStatus">Гость</span>
     </div>
     
-    <!-- Модальное окно авторизации -->
     <div id="authModal" class="auth-modal hidden">
         <div class="auth-container">
             <div class="auth-tabs">
                 <div class="auth-tab active" data-tab="login">Вход</div>
                 <div class="auth-tab" data-tab="register">Регистрация</div>
             </div>
-            
             <div id="loginForm" class="auth-form">
                 <input type="email" id="loginEmail" placeholder="Email">
                 <input type="password" id="loginPassword" placeholder="Пароль">
                 <button id="loginBtn">Войти</button>
                 <div id="loginError" class="auth-error"></div>
             </div>
-            
             <div id="registerForm" class="auth-form hidden">
                 <input type="email" id="regEmail" placeholder="Email">
                 <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)">
@@ -349,24 +282,18 @@
             <div>📏 Скорость: -- м/с</div>
         </div>
         <div class="flight-status status-ready" id="flightStatus">⏸️ Ожидание старта</div>
-         <div id="placeInfo" style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; display: none; border-left: 3px solid #ff9800;">
-    <div id="placeName" style="font-weight: bold; color: #333; margin-bottom: 8px;"></div>
-    <div id="placeLink" style="margin-top: 5px;"></div>
-</div>
-    
+        <div id="placeInfo">
+            <div id="placeName" style="font-weight: bold; color: #333; margin-bottom: 8px;"></div>
+            <div id="placeLink"></div>
+        </div>
     </div>
 
     <div class="hint" id="hint">👆 Кликните на карту, чтобы выбрать место старта</div>
     <div class="loading" id="loading">Загрузка карты... 🗺️</div>
-    
-   
-</div>
 
     <script>
         // ========== НАСТРОЙКИ ==========
         const API_URL = window.location.origin;
-        
-        // Состояние авторизации
         let token = localStorage.getItem('token');
         let currentUser = null;
         let isGuest = !token;
@@ -387,44 +314,71 @@
         
         const ZONES = { BRIGHT: 5000, MEDIUM: 10000, HAZE: 15000 };
         
-        setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
-
+        let map = null;
+        let lastPlaceCheck = null;
         
-////// Закрытие рекламного баннера
-//const closeAdBtn = document.getElementById('close-ad');
-//if (closeAdBtn) {
-   // closeAdBtn.addEventListener('click', () => {
-    //    document.getElementById('ad-container').style.display = 'none';
-        // Сохраняем в localStorage, чтобы не показывать снова
-  //      localStorage.setItem('ad_closed', 'true');
-  //  });
-    
-    // Если баннер уже закрывали, не показываем
- //   if (localStorage.getItem('ad_closed') === 'true') {
- //       document.getElementById('ad-container').style.display = 'none';
-//    }
-//}
-
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+        }, 3000);
         
+        // ========== ИНИЦИАЛИЗАЦИЯ КАРТЫ ==========
+        ymaps.ready(() => {
+            map = new ymaps.Map('map', {
+                center: [53.9, 27.56],
+                zoom: 10,
+                controls: ['zoomControl', 'fullscreenControl']
+            });
+            
+            // Включаем спутниковый режим
+            map.setType('satellite');
+            
+            // Обработчик клика по карте
+            map.events.add('click', async (e) => {
+                if (isFlying) return;
+                
+                const coords = e.get('coords');
+                const lat = coords[0];
+                const lng = coords[1];
+                
+                if (startMarker) {
+                    map.geoObjects.remove(startMarker);
+                }
+                
+                startMarker = new ymaps.Placemark(coords, {}, {
+                    preset: 'islands#redIcon'
+                });
+                map.geoObjects.add(startMarker);
+                
+                balloonPosition = { lat, lng };
+                updateCoordDisplay(lat, lng);
+                localStorage.setItem('balloon_start_point', JSON.stringify({ lat, lng }));
+                
+                document.getElementById('flightStatus').className = 'flight-status status-waiting';
+                document.getElementById('flightStatus').innerHTML = '⏳ Получение прогноза ветра...';
+                
+                await updateForecast(balloonPosition);
+                
+                document.getElementById('flightStatus').className = 'flight-status status-ready';
+                document.getElementById('flightStatus').innerHTML = '⏸️ Ожидание старта';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('hint').innerHTML = '✅ Точка выбрана. Нажмите СТАРТ';
+            });
+            
+            // Восстановление сохранённой точки
+            loadSavedData();
+        });
         
-        // ========== ФУНКЦИИ АВТОРИЗАЦИИ ==========
-        
+        // ========== АВТОРИЗАЦИЯ ==========
         function showAuthModal(show = true) {
             document.getElementById('authModal').classList.toggle('hidden', !show);
         }
         
         function updateProfileUI() {
             const profileStatus = document.getElementById('profileStatus');
-            const profileBtn = document.getElementById('profileButton');
-            
             if (currentUser) {
                 profileStatus.textContent = currentUser.email;
-                profileBtn.style.background = 'rgba(255,255,255,0.95)';
-                profileBtn.style.borderColor = '#4caf50';
             } else if (isGuest) {
                 profileStatus.textContent = 'Гость';
-                profileBtn.style.background = 'rgba(255,255,255,0.95)';
-                profileBtn.style.borderColor = '#ff9800';
             }
         }
         
@@ -503,16 +457,12 @@
             updateProfileUI();
         }
         
-        // ========== API ЗАПРОСЫ ==========
-        
         async function apiRequest(url, options = {}) {
             const headers = { 'Content-Type': 'application/json', ...options.headers };
             if (token) headers['Authorization'] = `Bearer ${token}`;
             const response = await fetch(`${API_URL}${url}`, { ...options, headers });
             return response;
         }
-        
-        // ========== ФУНКЦИИ ШАРА ==========
         
         function getUserId() {
             if (currentUser) return currentUser.id;
@@ -523,6 +473,7 @@
             })();
         }
         
+        // ========== ФУНКЦИИ ШАРА ==========
         async function getWindData(lat, lng) {
             try {
                 const response = await fetch(`${API_URL}/api/wind?lat=${lat}&lon=${lng}`);
@@ -572,32 +523,38 @@
             if (!wind) return;
             currentWind = wind;
             updateWindDisplay(wind);
-            forecastPoints = [startPoint];
+            forecastPoints = [{ lat: startPoint.lat, lng: startPoint.lng }];
             let currentPoint = startPoint;
             for (let i = 1; i <= 12; i++) {
                 const nextPoint = calculateNextPoint(currentPoint, wind, 300);
-                forecastPoints.push(L.latLng(nextPoint.lat, nextPoint.lng));
-                currentPoint = L.latLng(nextPoint.lat, nextPoint.lng);
+                forecastPoints.push({ lat: nextPoint.lat, lng: nextPoint.lng });
+                currentPoint = nextPoint;
             }
-            if (forecastLine) map.removeLayer(forecastLine);
-            forecastLine = L.polyline(forecastPoints, {
-                color: '#00aaff', weight: 3, opacity: 0.7, dashArray: '5, 5'
-            }).addTo(map);
+            if (forecastLine) {
+                map.geoObjects.remove(forecastLine);
+            }
+            forecastLine = new ymaps.Polyline(forecastPoints, {}, {
+                strokeColor: '#00aaff',
+                strokeWidth: 3,
+                strokeOpacity: 0.7,
+                strokeStyle: 'dash'
+            });
+            map.geoObjects.add(forecastLine);
         }
         
         function updateHaze(center) {
             const canvas = document.getElementById('haze-canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = map.getSize().x;
-            canvas.height = map.getSize().y;
+            canvas.width = map.container.getSize().width;
+            canvas.height = map.container.getSize().height;
             if (!center || !isFlying) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 return;
             }
-            const centerPoint = map.latLngToContainerPoint(center);
+            const centerPoint = map.converter.globalToPage(map.options.projection.toGlobalPixels([center.lat, center.lng], map.getZoom()));
             const maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
-            const gradient = ctx.createRadialGradient(centerPoint.x, centerPoint.y, 0, centerPoint.x, centerPoint.y, maxRadius);
-            const metersPerPixel = map.distance(map.containerPointToLatLng([0, 0]), map.containerPointToLatLng([1, 0]));
+            const gradient = ctx.createRadialGradient(centerPoint[0], centerPoint[1], 0, centerPoint[0], centerPoint[1], maxRadius);
+            const metersPerPixel = 100000 / Math.pow(2, map.getZoom());
             const brightRadius = ZONES.BRIGHT / metersPerPixel;
             const mediumRadius = ZONES.MEDIUM / metersPerPixel;
             const hazeRadius = ZONES.HAZE / metersPerPixel;
@@ -606,85 +563,79 @@
             const pos3 = Math.min(1, hazeRadius / maxRadius);
             gradient.addColorStop(0, 'rgba(0,0,0,0)');
             gradient.addColorStop(pos1, 'rgba(0,0,0,0)');
-            gradient.addColorStop(pos2, 'rgba(100,100,100,0.5)');
+            gradient.addColorStop(pos2, 'rgba(100,100,100,0.1)');
             gradient.addColorStop(pos3, 'rgba(50,50,50,0.5)');
-            gradient.addColorStop(1, 'rgba(30,30,30,0.5)');
+            gradient.addColorStop(1, 'rgba(30,30,30,0.7)');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-
-// Проверка места
-      let lastPlaceCheck = null;
-
-async function checkNearbyPlace(lat, lng) {
-    const now = Date.now();
-    if (lastPlaceCheck && (now - lastPlaceCheck) < 30000) {
-        return;
-    }
-    lastPlaceCheck = now;
-    
-    try {
-        const response = await fetch(`${API_URL}/api/place?lat=${lat}&lon=${lng}`);
-        const data = await response.json();
-        
-        const placeInfo = document.getElementById('placeInfo');
-        if (!placeInfo) return;
-        
-        if (data.found && data.name) {
-            placeInfo.style.display = 'block';
-            document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
-            
-            if (data.wikipedia_url) {
-                document.getElementById('placeLink').innerHTML = `<a href="${data.wikipedia_url}" target="_blank" style="font-size: 13px; color: #4285f4; text-decoration: none;">📖 Посмотреть в Википедии →</a>`;
-            } else {
-                document.getElementById('placeLink').innerHTML = '<span style="font-size: 12px; color: #999;"></span>';
-            }
-            
-            // Автоматически скрываем через 30 секунд
-            setTimeout(() => {
-                if (placeInfo.style.display !== 'none') {
-                    placeInfo.style.display = 'none';
-                }
-            }, 30000);
-        } else {
-            placeInfo.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Ошибка получения места:', error);
-    }
-}////////////////////////////////
-
         
         function moveBalloon() {
             if (!isFlying || !balloonPosition || !currentWind) return;
             const nextPoint = calculateNextPoint(balloonPosition, currentWind, 1);
-            balloonPosition = L.latLng(nextPoint.lat, nextPoint.lng);
-            if (balloonMarker) balloonMarker.setLatLng(balloonPosition);
+            balloonPosition = nextPoint;
+            if (balloonMarker) {
+                balloonMarker.geometry.setCoordinates([balloonPosition.lat, balloonPosition.lng]);
+            }
             updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
             updateHaze(balloonPosition);
-            checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
-            if (actualPathPoints.length === 0 || map.distance(balloonPosition, actualPathPoints[actualPathPoints.length - 1]) > 10) {
+            if (actualPathPoints.length === 0 || 
+                Math.hypot(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1].lat, 
+                          balloonPosition.lng - actualPathPoints[actualPathPoints.length-1].lng) > 0.001) {
                 actualPathPoints.push(balloonPosition);
-                if (pathLine) map.removeLayer(pathLine);
-                pathLine = L.polyline(actualPathPoints, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
+                if (pathLine) {
+                    map.geoObjects.remove(pathLine);
+                }
+                pathLine = new ymaps.Polyline(actualPathPoints, {}, {
+                    strokeColor: '#ff4444',
+                    strokeWidth: 4,
+                    strokeOpacity: 0.8
+                });
+                map.geoObjects.add(pathLine);
             }
-            // Проверяем ближайший населённый пункт (не чаще 30 сек)
-           if (!lastPlaceCheck || Date.now() - lastPlaceCheck > 30000) {
-        checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
+            checkNearbyPlace(balloonPosition.lat, balloonPosition.lng);
         }
+        
+        async function checkNearbyPlace(lat, lng) {
+            const now = Date.now();
+            if (lastPlaceCheck && (now - lastPlaceCheck) < 30000) return;
+            lastPlaceCheck = now;
+            try {
+                const response = await fetch(`${API_URL}/api/place?lat=${lat}&lon=${lng}`);
+                const data = await response.json();
+                const placeInfo = document.getElementById('placeInfo');
+                if (!placeInfo) return;
+                if (data.found && data.name) {
+                    placeInfo.style.display = 'block';
+                    document.getElementById('placeName').innerHTML = `🏙️ ${data.name}${data.country ? `, ${data.country}` : ''}`;
+                    if (data.wikipedia_url) {
+                        document.getElementById('placeLink').innerHTML = `<a href="${data.wikipedia_url}" target="_blank">📖 Посмотреть в Википедии →</a>`;
+                    } else {
+                        document.getElementById('placeLink').innerHTML = '<span style="font-size: 12px; color: #999;">Нет страницы в Википедии</span>';
+                    }
+                    setTimeout(() => {
+                        if (placeInfo.style.display !== 'none') {
+                            placeInfo.style.display = 'none';
+                        }
+                    }, 30000);
+                } else {
+                    placeInfo.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Ошибка получения места:', error);
+            }
         }
+        
         function updateCoordDisplay(lat, lng) {
             document.getElementById('coordinates').innerHTML = `Широта: ${lat.toFixed(6)}<br>Долгота: ${lng.toFixed(6)}`;
         }
         
         async function startFlight() {
             if (!balloonPosition) { alert('Сначала выберите точку старта'); return; }
-            
             const flightStatus = document.getElementById('flightStatus');
             flightStatus.className = 'flight-status status-waiting';
             flightStatus.innerHTML = '⏳ Создание шара...';
-            
             try {
                 const response = await apiRequest('/api/balloons', {
                     method: 'POST',
@@ -692,26 +643,28 @@ async function checkNearbyPlace(lat, lng) {
                 });
                 const balloon = await response.json();
                 if (balloon.error) throw new Error(balloon.error);
-                
                 balloonId = balloon.id;
                 currentWind = { speed: balloon.wind_speed, direction: balloon.wind_direction };
                 updateWindDisplay(currentWind);
-                
-                if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-                
-                const balloonIcon = L.icon({
-                    iconUrl: '/images/balloon.png',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16],
-                    popupAnchor: [0, -16]
-                });
-                
-                balloonMarker = L.marker(balloonPosition, { icon: balloonIcon, zIndexOffset: 1000 }).addTo(map);
+                if (startMarker) {
+                    map.geoObjects.remove(startMarker);
+                    startMarker = null;
+                }
+                const balloonIcon = L.divIcon ? L.divIcon({
+                    html: '🎈', className: 'balloon-marker', iconSize: [32, 32], iconAnchor: [16, 16]
+                }) : null;
+                if (typeof L !== 'undefined' && L.marker) {
+                    balloonMarker = L.marker([balloonPosition.lat, balloonPosition.lng]).addTo(map);
+                } else {
+                    balloonMarker = new ymaps.Placemark([balloonPosition.lat, balloonPosition.lng], {}, {
+                        preset: 'islands#redIcon',
+                        iconContent: '🎈'
+                    });
+                    map.geoObjects.add(balloonMarker);
+                }
                 actualPathPoints = [balloonPosition];
-                
                 if (movementInterval) clearInterval(movementInterval);
                 movementInterval = setInterval(moveBalloon, 1000);
-                
                 if (windUpdateInterval) clearInterval(windUpdateInterval);
                 windUpdateInterval = setInterval(async () => {
                     if (isFlying && balloonPosition) {
@@ -719,7 +672,6 @@ async function checkNearbyPlace(lat, lng) {
                         if (newWind) { currentWind = newWind; updateWindDisplay(currentWind); updateForecast(balloonPosition); }
                     }
                 }, 60000);
-                
                 isFlying = true;
                 document.getElementById('startBtn').disabled = true;
                 flightStatus.className = 'flight-status status-flying';
@@ -741,39 +693,36 @@ async function checkNearbyPlace(lat, lng) {
                 if (response.status === 404) return false;
                 const balloon = await response.json();
                 if (balloon && balloon.is_flying) {
-                    console.log('🔄 Восстанавливаем шар:', balloon.id);
-                    balloonPosition = L.latLng(balloon.current_lat, balloon.current_lng);
+                    balloonPosition = { lat: balloon.current_lat, lng: balloon.current_lng };
                     currentWind = { speed: balloon.wind_speed, direction: balloon.wind_direction };
                     balloonId = balloon.id;
-                    
                     if (balloon.path && balloon.path.length > 0) {
-                        actualPathPoints = balloon.path.map(p => L.latLng(p.lat, p.lng));
-                        if (pathLine) map.removeLayer(pathLine);
-                        pathLine = L.polyline(actualPathPoints, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
+                        actualPathPoints = balloon.path.map(p => ({ lat: p.lat, lng: p.lng }));
+                        if (pathLine) map.geoObjects.remove(pathLine);
+                        pathLine = new ymaps.Polyline(actualPathPoints, {}, {
+                            strokeColor: '#ff4444', strokeWidth: 4, strokeOpacity: 0.8
+                        });
+                        map.geoObjects.add(pathLine);
                     }
-                    
-                    const balloonIcon = L.icon({
-                        iconUrl: '/images/balloon.png',
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 16],
-                        popupAnchor: [0, -16]
-                    });
-                    
-                    balloonMarker = L.marker(balloonPosition, { icon: balloonIcon, zIndexOffset: 1000 }).addTo(map);
-                    map.setView(balloonPosition, 10);
+                    if (typeof L !== 'undefined' && L.marker) {
+                        balloonMarker = L.marker([balloonPosition.lat, balloonPosition.lng]).addTo(map);
+                    } else {
+                        balloonMarker = new ymaps.Placemark([balloonPosition.lat, balloonPosition.lng], {}, {
+                            preset: 'islands#redIcon', iconContent: '🎈'
+                        });
+                        map.geoObjects.add(balloonMarker);
+                    }
+                    map.setCenter([balloonPosition.lat, balloonPosition.lng], 10);
                     updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
                     updateWindDisplay(currentWind);
-                    
                     isFlying = true;
                     document.getElementById('startBtn').disabled = true;
                     document.getElementById('flightStatus').className = 'flight-status status-flying';
                     document.getElementById('flightStatus').innerHTML = '🎈 В ПОЛЁТЕ';
                     document.getElementById('hint').style.display = 'none';
                     updateHaze(balloonPosition);
-                    
                     if (movementInterval) clearInterval(movementInterval);
                     movementInterval = setInterval(moveBalloon, 1000);
-                    
                     if (windUpdateInterval) clearInterval(windUpdateInterval);
                     windUpdateInterval = setInterval(async () => {
                         if (isFlying && balloonPosition) {
@@ -794,10 +743,14 @@ async function checkNearbyPlace(lat, lng) {
             if (movementInterval) { clearInterval(movementInterval); movementInterval = null; }
             if (windUpdateInterval) { clearInterval(windUpdateInterval); windUpdateInterval = null; }
             if (balloonId) { apiRequest(`/api/balloons/${balloonId}/stop`, { method: 'POST' }).catch(console.error); }
-            if (balloonMarker) { map.removeLayer(balloonMarker); balloonMarker = null; }
-            if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-            if (forecastLine) { map.removeLayer(forecastLine); forecastLine = null; }
-            if (pathLine) { map.removeLayer(pathLine); pathLine = null; }
+            if (balloonMarker) {
+                if (balloonMarker.geometry) map.geoObjects.remove(balloonMarker);
+                else if (balloonMarker.remove) balloonMarker.remove();
+                balloonMarker = null;
+            }
+            if (startMarker) { map.geoObjects.remove(startMarker); startMarker = null; }
+            if (forecastLine) { map.geoObjects.remove(forecastLine); forecastLine = null; }
+            if (pathLine) { map.geoObjects.remove(pathLine); pathLine = null; }
             forecastPoints = []; actualPathPoints = [];
             isFlying = false; balloonPosition = null; currentWind = null; balloonId = null;
             document.getElementById('coordinates').innerHTML = 'Широта: --<br>Долгота: --';
@@ -809,42 +762,38 @@ async function checkNearbyPlace(lat, lng) {
             document.getElementById('hint').innerHTML = '👆 Кликните на карту, чтобы выбрать место старта';
             updateHaze(null);
         }
-
-
         
-        // ========== КАРТА ==========
-        const map = L.map('map', { center: [52.12, 23.72], zoom: 8, zoomControl: true });
-        const esriSatellite = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri', maxZoom: 19 });
-        const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
-        esriSatellite.addTo(map);
-        L.control.layers({ "🛰️ Спутник ESRI": esriSatellite, "🗺️ Схема OSM": osmStandard }, null, { position: 'topleft', collapsed: false }).addTo(map);
-        L.control.scale({ metric: true, position: 'bottomleft' }).addTo(map);
+        async function loadSavedData() {
+            try {
+                const restored = await restoreBalloon();
+                if (!restored) {
+                    const saved = localStorage.getItem('balloon_start_point');
+                    if (saved) {
+                        const { lat, lng } = JSON.parse(saved);
+                        map.setCenter([lat, lng], 10);
+                        setTimeout(() => {
+                            if (startMarker) map.geoObjects.remove(startMarker);
+                            startMarker = new ymaps.Placemark([lat, lng], {}, { preset: 'islands#redIcon' });
+                            map.geoObjects.add(startMarker);
+                            balloonPosition = { lat, lng };
+                            updateCoordDisplay(lat, lng);
+                        }, 1000);
+                    }
+                }
+            } catch (e) { console.warn('Ошибка загрузки:', e); }
+        }
         
-        // ========== СОБЫТИЯ ==========
-        map.on('click', async function(e) {
-            if (isFlying) return;
-            const { lat, lng } = e.latlng;
-            if (startMarker) map.removeLayer(startMarker);
-            startMarker = L.marker([lat, lng]).addTo(map);
-            balloonPosition = L.latLng(lat, lng);
-            updateCoordDisplay(lat, lng);
-            document.getElementById('flightStatus').className = 'flight-status status-waiting';
-            document.getElementById('flightStatus').innerHTML = '⏳ Получение прогноза ветра...';
-            await updateForecast(balloonPosition);
-            document.getElementById('flightStatus').className = 'flight-status status-ready';
-            document.getElementById('flightStatus').innerHTML = '⏸️ Ожидание старта';
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('hint').innerHTML = '✅ Точка выбрана. Нажмите СТАРТ';
-        });
-        
+        // Обработчики событий
         document.getElementById('startBtn').addEventListener('click', startFlight);
         document.getElementById('resetBtn').addEventListener('click', resetFlight);
-        
-        // Авторизация
         document.getElementById('profileButton').addEventListener('click', () => showAuthModal(true));
         document.getElementById('continueGuestBtn').addEventListener('click', continueAsGuest);
-        document.getElementById('logoutBtn')?.addEventListener('click', logout);
-        
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            login(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
+        });
+        document.getElementById('registerBtn').addEventListener('click', () => {
+            register(document.getElementById('regEmail').value, document.getElementById('regPassword').value);
+        });
         document.querySelectorAll('.auth-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
@@ -854,14 +803,7 @@ async function checkNearbyPlace(lat, lng) {
                 document.getElementById('registerForm').classList.toggle('hidden', tabName !== 'register');
             });
         });
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            login(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
-        });
-        document.getElementById('registerBtn').addEventListener('click', () => {
-            register(document.getElementById('regEmail').value, document.getElementById('regPassword').value);
-        });
         
-        // Инициализация
         if (token) {
             fetch(`${API_URL}/api/auth/me`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -879,23 +821,12 @@ async function checkNearbyPlace(lat, lng) {
             updateProfileUI();
         }
         
-        map.on('move', () => { if (balloonPosition && isFlying) updateHaze(balloonPosition); });
-        window.addEventListener('resize', () => { if (balloonPosition && isFlying) updateHaze(balloonPosition); });
+        // Пинг для поддержания сервера
+        setInterval(() => {
+            fetch(`${API_URL}/api/health`).catch(() => {});
+        }, 600000);
         
         console.log('🎈 Симулятор готов! Режим:', currentUser ? 'Авторизован' : 'Гость');
-
-        console.log('🎈 Симулятор готов! API_URL =', API_URL);
-
-// ========== ПИНГ ДЛЯ ПОДДЕРЖАНИЯ СЕРВЕРА ==========
-// Каждые 10 минут отправляем запрос к серверу, чтобы он не засыпал
-setInterval(() => {
-    fetch(`${API_URL}/api/health`)
-        .then(response => response.json())
-        .then(data => console.log('💓 Пинг сервера:', data.status))
-        .catch(err => console.warn('⚠️ Пинг не удался:', err));
-}, 600000); // 600000 мс = 10 минут
-
-console.log('🕐 Пинг настроен (каждые 10 минут)');
     </script>
 </body>
 </html>
