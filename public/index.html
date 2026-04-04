@@ -9,7 +9,6 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #map { height: 100%; width: 100%; background: #2a2a2a; position: relative; z-index: 1; }
-        #haze-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
         
         .info-panel {
             position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95);
@@ -54,7 +53,6 @@
 </head>
 <body>
     <div id="map"></div>
-    <canvas id="haze-canvas"></canvas>
     
     <div id="profileButton" class="profile-btn"><span>👤</span> <span id="profileStatus">Гость</span></div>
     
@@ -161,68 +159,104 @@
                 cur = nxt;
             }
             if (forecastLine) map.geoObjects.remove(forecastLine);
-            forecastLine = new ymaps.Polyline(points, {}, { strokeColor: '#00aaff', strokeWidth: 3, strokeOpacity: 0.7, strokeStyle: 'dash' });
+            forecastLine = new ymaps.Polyline(points, {}, { 
+                strokeColor: '#00aaff', 
+                strokeWidth: 3, 
+                strokeOpacity: 0.7,
+                strokeStyle: 'dash'
+            });
             map.geoObjects.add(forecastLine);
-        }
-        
-        // Дымка отключена (canvas не используется)
-        function updateHaze(center) {
-            // Функция оставлена пустой, чтобы не было ошибок
-            return;
         }
         
         function moveBalloon() {
             if (!isFlying || !balloonPosition || !currentWind) return;
             const nxt = calculateNextPoint(balloonPosition, currentWind, 1);
             balloonPosition = nxt;
-            if (balloonMarker) balloonMarker.geometry.setCoordinates([balloonPosition.lat, balloonPosition.lng]);
+            if (balloonMarker) {
+                balloonMarker.geometry.setCoordinates([balloonPosition.lat, balloonPosition.lng]);
+            }
             updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
             
-            // Добавляем точку в пройденный путь
+            // Обновляем красную линию (пройденный путь)
             if (actualPathPoints.length === 0 || 
-                Math.abs(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0]) > 0.01 ||
-                Math.abs(balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.01) {
+                Math.abs(balloonPosition.lat - actualPathPoints[actualPathPoints.length-1][0]) > 0.001 ||
+                Math.abs(balloonPosition.lng - actualPathPoints[actualPathPoints.length-1][1]) > 0.001) {
                 actualPathPoints.push([balloonPosition.lat, balloonPosition.lng]);
                 if (pathLine) map.geoObjects.remove(pathLine);
-                pathLine = new ymaps.Polyline(actualPathPoints, {}, { strokeColor: '#ff4444', strokeWidth: 4, strokeOpacity: 0.8 });
+                pathLine = new ymaps.Polyline(actualPathPoints, {}, { 
+                    strokeColor: '#ff4444', 
+                    strokeWidth: 4, 
+                    strokeOpacity: 0.8 
+                });
                 map.geoObjects.add(pathLine);
             }
         }
         
         async function startFlight() {
             if (!balloonPosition) { alert('Выберите точку старта'); return; }
-            const userId = localStorage.getItem('guest_user_id') || (() => { const id = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('guest_user_id', id); return id; })();
+            
+            const userId = localStorage.getItem('guest_user_id');
+            if (!userId) {
+                const newId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('guest_user_id', newId);
+            }
+            const finalUserId = localStorage.getItem('guest_user_id');
+            
             const statusDiv = document.getElementById('flightStatus');
             statusDiv.className = 'flight-status status-waiting';
             statusDiv.innerHTML = '⏳ Создание шара...';
+            
             try {
                 const res = await fetch(`${API_URL}/api/balloons`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ lat: balloonPosition.lat, lng: balloonPosition.lng, userId })
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: balloonPosition.lat, lng: balloonPosition.lng, userId: finalUserId })
                 });
                 const balloon = await res.json();
                 if (balloon.error) throw new Error(balloon.error);
+                
                 balloonId = balloon.id;
                 currentWind = { speed: balloon.wind_speed, direction: balloon.wind_direction };
                 updateWindDisplay(currentWind);
-                if (startMarker) { map.geoObjects.remove(startMarker); startMarker = null; }
+                
+                if (startMarker) { 
+                    map.geoObjects.remove(startMarker); 
+                    startMarker = null; 
+                }
+                
                 balloonMarker = new ymaps.Placemark([balloonPosition.lat, balloonPosition.lng], {}, { preset: 'islands#redIcon' });
                 map.geoObjects.add(balloonMarker);
+                
                 actualPathPoints = [[balloonPosition.lat, balloonPosition.lng]];
+                
                 if (movementInterval) clearInterval(movementInterval);
                 movementInterval = setInterval(moveBalloon, 1000);
+                
                 if (windUpdateInterval) clearInterval(windUpdateInterval);
                 windUpdateInterval = setInterval(async () => {
                     if (isFlying && balloonPosition) {
                         const w = await getWindData(balloonPosition.lat, balloonPosition.lng);
-                        if (w) { currentWind = w; updateWindDisplay(currentWind); updateForecast(balloonPosition); }
+                        if (w) { 
+                            currentWind = w; 
+                            updateWindDisplay(currentWind); 
+                            updateForecast(balloonPosition);
+                        }
                     }
                 }, 60000);
+                
                 isFlying = true;
                 document.getElementById('startBtn').disabled = true;
                 statusDiv.className = 'flight-status status-flying';
                 statusDiv.innerHTML = '🎈 В ПОЛЁТЕ';
                 document.getElementById('hint').style.display = 'none';
+                
+                // Сохраняем состояние в localStorage
+                localStorage.setItem('balloon_flying', 'true');
+                localStorage.setItem('balloon_id', balloonId);
+                localStorage.setItem('balloon_lat', balloonPosition.lat);
+                localStorage.setItem('balloon_lng', balloonPosition.lng);
+                localStorage.setItem('balloon_path', JSON.stringify(actualPathPoints));
+                
             } catch (err) {
                 console.error(err);
                 alert('Ошибка: ' + err.message);
@@ -231,19 +265,98 @@
             }
         }
         
+        async function restoreBalloon() {
+            const savedFlying = localStorage.getItem('balloon_flying');
+            if (!savedFlying || savedFlying !== 'true') return false;
+            
+            const savedId = localStorage.getItem('balloon_id');
+            const savedLat = parseFloat(localStorage.getItem('balloon_lat'));
+            const savedLng = parseFloat(localStorage.getItem('balloon_lng'));
+            const savedPath = localStorage.getItem('balloon_path');
+            
+            if (!savedId || isNaN(savedLat) || isNaN(savedLng)) return false;
+            
+            try {
+                // Проверяем шар на сервере
+                const res = await fetch(`${API_URL}/api/balloons/${savedId}`);
+                if (res.status === 404) return false;
+                const balloon = await res.json();
+                
+                if (balloon && balloon.is_flying) {
+                    balloonPosition = { lat: balloon.current_lat, lng: balloon.current_lng };
+                    currentWind = { speed: balloon.wind_speed, direction: balloon.wind_direction };
+                    balloonId = balloon.id;
+                    
+                    if (balloon.path && balloon.path.length > 0) {
+                        actualPathPoints = balloon.path.map(p => [p.lat, p.lng]);
+                        if (pathLine) map.geoObjects.remove(pathLine);
+                        pathLine = new ymaps.Polyline(actualPathPoints, {}, { 
+                            strokeColor: '#ff4444', 
+                            strokeWidth: 4, 
+                            strokeOpacity: 0.8 
+                        });
+                        map.geoObjects.add(pathLine);
+                    }
+                    
+                    balloonMarker = new ymaps.Placemark([balloonPosition.lat, balloonPosition.lng], {}, { preset: 'islands#redIcon' });
+                    map.geoObjects.add(balloonMarker);
+                    map.setCenter([balloonPosition.lat, balloonPosition.lng], 10);
+                    updateCoordDisplay(balloonPosition.lat, balloonPosition.lng);
+                    updateWindDisplay(currentWind);
+                    
+                    isFlying = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('flightStatus').className = 'flight-status status-flying';
+                    document.getElementById('flightStatus').innerHTML = '🎈 В ПОЛЁТЕ';
+                    document.getElementById('hint').style.display = 'none';
+                    
+                    if (movementInterval) clearInterval(movementInterval);
+                    movementInterval = setInterval(moveBalloon, 1000);
+                    
+                    if (windUpdateInterval) clearInterval(windUpdateInterval);
+                    windUpdateInterval = setInterval(async () => {
+                        if (isFlying && balloonPosition) {
+                            const w = await getWindData(balloonPosition.lat, balloonPosition.lng);
+                            if (w) { 
+                                currentWind = w; 
+                                updateWindDisplay(currentWind);
+                            }
+                        }
+                    }, 60000);
+                    
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Ошибка восстановления:', error);
+                return false;
+            }
+        }
+        
         function resetFlight() {
             if (movementInterval) clearInterval(movementInterval);
             if (windUpdateInterval) clearInterval(windUpdateInterval);
-            if (balloonId) fetch(`${API_URL}/api/balloons/${balloonId}/stop`, { method: 'POST' }).catch(()=>{});
+            if (balloonId) {
+                fetch(`${API_URL}/api/balloons/${balloonId}/stop`, { method: 'POST' }).catch(()=>{});
+            }
             if (balloonMarker) map.geoObjects.remove(balloonMarker);
             if (startMarker) map.geoObjects.remove(startMarker);
             if (forecastLine) map.geoObjects.remove(forecastLine);
             if (pathLine) map.geoObjects.remove(pathLine);
+            
             actualPathPoints = [];
             isFlying = false;
             balloonPosition = null;
             currentWind = null;
             balloonId = null;
+            
+            // Очищаем localStorage
+            localStorage.removeItem('balloon_flying');
+            localStorage.removeItem('balloon_id');
+            localStorage.removeItem('balloon_lat');
+            localStorage.removeItem('balloon_lng');
+            localStorage.removeItem('balloon_path');
+            
             document.getElementById('coordinates').innerHTML = 'Широта: --<br>Долгота: --';
             updateWindDisplay(null);
             document.getElementById('startBtn').disabled = true;
@@ -260,21 +373,58 @@
             try {
                 const res = await fetch(`${API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
                 const data = await res.json();
-                if (res.ok) { token = data.token; currentUser = data.user; localStorage.setItem('token', token); showAuthModal(false); updateProfileUI(); return true; }
-                else { document.getElementById('loginError').textContent = data.error; return false; }
-            } catch(e) { document.getElementById('loginError').textContent = 'Ошибка'; return false; }
+                if (res.ok) { 
+                    token = data.token; 
+                    currentUser = data.user; 
+                    localStorage.setItem('token', token); 
+                    showAuthModal(false); 
+                    updateProfileUI(); 
+                    return true; 
+                } else { 
+                    document.getElementById('loginError').textContent = data.error; 
+                    return false; 
+                }
+            } catch(e) { 
+                document.getElementById('loginError').textContent = 'Ошибка'; 
+                return false; 
+            }
         }
         async function register(email, password) {
-            if (password.length < 6) { document.getElementById('regError').textContent = 'Минимум 6 символов'; return false; }
+            if (password.length < 6) { 
+                document.getElementById('regError').textContent = 'Минимум 6 символов'; 
+                return false; 
+            }
             try {
                 const res = await fetch(`${API_URL}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
                 const data = await res.json();
-                if (res.ok) { token = data.token; currentUser = data.user; localStorage.setItem('token', token); showAuthModal(false); updateProfileUI(); return true; }
-                else { document.getElementById('regError').textContent = data.error; return false; }
-            } catch(e) { document.getElementById('regError').textContent = 'Ошибка'; return false; }
+                if (res.ok) { 
+                    token = data.token; 
+                    currentUser = data.user; 
+                    localStorage.setItem('token', token); 
+                    showAuthModal(false); 
+                    updateProfileUI(); 
+                    return true; 
+                } else { 
+                    document.getElementById('regError').textContent = data.error; 
+                    return false; 
+                }
+            } catch(e) { 
+                document.getElementById('regError').textContent = 'Ошибка'; 
+                return false; 
+            }
         }
-        function logout() { localStorage.removeItem('token'); token = null; currentUser = null; updateProfileUI(); resetFlight(); showAuthModal(false); }
-        function continueAsGuest() { showAuthModal(false); updateProfileUI(); }
+        function logout() { 
+            localStorage.removeItem('token'); 
+            token = null; 
+            currentUser = null; 
+            updateProfileUI(); 
+            resetFlight(); 
+            showAuthModal(false); 
+        }
+        function continueAsGuest() { 
+            showAuthModal(false); 
+            updateProfileUI(); 
+        }
         
         // Инициализация карты
         ymaps.ready(() => {
@@ -284,7 +434,6 @@
                 controls: ['zoomControl', 'typeSelector']
             });
             
-            // По умолчанию показываем спутник
             map.setType('yandex#satellite');
             
             map.events.add('click', async (e) => {
@@ -305,21 +454,25 @@
                 document.getElementById('hint').innerHTML = '✅ Точка выбрана. Нажмите СТАРТ';
             });
             
-            // Восстановление точки
-            const saved = localStorage.getItem('balloon_start_point');
-            if (saved) {
-                try {
-                    const { lat, lng } = JSON.parse(saved);
-                    map.setCenter([lat, lng], 10);
-                    setTimeout(() => {
-                        if (startMarker) map.geoObjects.remove(startMarker);
-                        startMarker = new ymaps.Placemark([lat, lng], {}, { preset: 'islands#redIcon' });
-                        map.geoObjects.add(startMarker);
-                        balloonPosition = { lat, lng };
-                        updateCoordDisplay(lat, lng);
-                    }, 500);
-                } catch(e) {}
-            }
+            // Восстановление полёта
+            restoreBalloon().then(restored => {
+                if (!restored) {
+                    const saved = localStorage.getItem('balloon_start_point');
+                    if (saved) {
+                        try {
+                            const { lat, lng } = JSON.parse(saved);
+                            map.setCenter([lat, lng], 10);
+                            setTimeout(() => {
+                                if (startMarker) map.geoObjects.remove(startMarker);
+                                startMarker = new ymaps.Placemark([lat, lng], {}, { preset: 'islands#redIcon' });
+                                map.geoObjects.add(startMarker);
+                                balloonPosition = { lat, lng };
+                                updateCoordDisplay(lat, lng);
+                            }, 500);
+                        } catch(e) {}
+                    }
+                }
+            });
         });
         
         document.getElementById('startBtn').addEventListener('click', startFlight);
