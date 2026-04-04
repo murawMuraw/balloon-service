@@ -298,7 +298,16 @@
         // Инициализация карты
         ymaps.ready(() => {
             map = new ymaps.Map('map', { center: [53.9, 27.56], zoom: 10, controls: ['zoomControl'] });
-            map.setType('satellite');
+            
+            // Включаем спутник с задержкой, после полной инициализации
+            setTimeout(() => {
+                try {
+                    map.setType('satellite');
+                } catch(e) {
+                    console.warn('Не удалось включить спутник:', e);
+                }
+            }, 500);
+            
             map.events.add('click', async (e) => {
                 if (isFlying) return;
                 const coords = e.get('coords');
