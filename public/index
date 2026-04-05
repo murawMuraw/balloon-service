@@ -63,9 +63,10 @@
 
                 // 2. Иконка шара (заменил на прямую ссылку на картинку)
                 const balloonIcon = L.icon({
-                    iconUrl: 'https://flaticon.com',
-                    iconSize: [40, 40],
-                    iconAnchor: [20, 40]
+                iconUrl: 'https://githubusercontent.com',
+                iconSize: [50, 50],    // Размер иконки в пикселях
+                iconAnchor: [25, 50],  // Точка привязки (низ центра иконки)
+                popupAnchor: [0, -50]  // Где будет всплывать окно (если добавите)
                 });
 
                 let balloonMarker = L.marker([53.9, 27.5], { icon: balloonIcon }).addTo(map);
