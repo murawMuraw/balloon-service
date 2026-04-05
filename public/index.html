@@ -609,9 +609,9 @@
             gradient.addColorStop(pos2, 'rgba(100,100,100,0.5)');
             gradient.addColorStop(pos3, 'rgba(50,50,50,0.5)');
             // СРАЗУ ЖЕ после неё (на той же позиции или +0.001) делаем полную прозрачность
-            gradient.addColorStop(pos3 + 0.0001, 'rgba(0,0,0,0)');
+            gradient.addColorStop(pos3 + 0.0001, 'rgba(255,255,255,0)');
             // И до самого конца (1) оставляем всё прозрачным
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
