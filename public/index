@@ -5,13 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- Настройка безопасности: разрешаем работу Яндекса и Leaflet -->
-    <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self' https:; 
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://yandex.ru https://yastatic.net https://unpkg.com; 
-    img-src 'self' data: https://*.yandex.net https://*.tile.openstreetmap.org https://unpkg.com https://githubusercontent.com; 
-    style-src 'self' 'unsafe-inline' https://unpkg.com; 
-    connect-src 'self' https://*.yandex.ru; 
-    frame-src https://*.yandex.ru;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.yandex.ru https://yastatic.net https://unpkg.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self' https://*.yandex.ru; frame-src https://*.yandex.ru;">
+
 
     <title>Balloon Service - Yandex Satellite</title>
     
