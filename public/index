@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' *.yandex.ru unpkg.com shramov.github.io; 
+    img-src 'self' data: *.yandex.net *.tile.openstreetmap.org unpkg.com ://flaticon.com; 
+    style-src 'self' 'unsafe-inline' unpkg.com; 
+    connect-src 'self' *.yandex.ru; 
+    frame-src *.yandex.ru;">
+
     <title>Balloon Service - Yandex Satellite</title>
     
     <!-- Leaflet CSS -->
