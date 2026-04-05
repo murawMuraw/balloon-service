@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balloon Service - Yandex Satellite</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    
+    <!-- API Яндекс.Карт (с вашим ключом и русским языком) -->
+    <script src="https://yandex.ru" type="text/javascript"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com"></script>
+    
+    <!-- Плагин для подключения слоев Яндекса в Leaflet -->
+    <script src="https://github.io"></script>
+
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { margin: 0; padding: 0; }
+        .info-panel {
+            position: absolute; top: 10px; left: 50px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.9); padding: 10px;
+            border-radius: 5px; font-family: Arial, sans-serif;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel" id="info">
+        <b>Статус:</b> Ожидание данных...<br>
+        <b>Ветер:</b> <span id="wind-info">0 м/с</span>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        // 1. Инициализация карты со спутником Яндекса (гибрид: фото + названия)
+        const yandexLayer = new L.Yandex('hybrid'); 
+
+        const map = L.map('map', {
+            center: [53.9, 27.5], // Центр СНГ (Минск)
+            zoom: 6,
+            layers: [yandexLayer]
+        });
+
+        // Добавляем переключатель слоев
+        L.control.layers({
+            "Яндекс Спутник": yandexLayer,
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+        }).addTo(map);
+
+        // 2. Иконка воздушного шара
+        const balloonIcon = L.icon({
+            iconUrl: 'https://flaticon.com', // Замените на свой путь
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
+        });
+
+        let balloonMarker = L.marker([53.9, 27.5], { icon: balloonIcon }).addTo(map);
+
+        // 3. Данные о ветре (используем существующие в вашей логике)
+        let windData = { speed: 8, deg: 225 }; // Пример: 8 м/с, Юго-западный
+
+        // 4. Функция движения (ваша логика из GitHub)
+        function updateBalloonPosition() {
+            const currentPos = balloonMarker.getLatLng();
+            
+            // Коэффициент перемещения (упрощенно: градусы на м/с)
+            const meterToDegree = 0.00001; 
+            const angleRad = (windData.deg - 90) * (Math.PI / 180);
+
+            const deltaLat = Math.cos(angleRad) * windData.speed * meterToDegree;
+            const deltaLng = Math.sin(angleRad) * windData.speed * meterToDegree;
+
+            const newLat = currentPos.lat - deltaLat;
+            const newLng = currentPos.lng + deltaLng;
+
+            balloonMarker.setLatLng([newLat, newLng]);
+            
+            // Обновляем инфо-панель
+            document.getElementById('wind-info').innerText = `${windData.speed} м/с, ${windData.deg}°`;
+            document.getElementById('info').innerHTML = `<b>Координаты:</b> ${newLat.toFixed(4)}, ${newLng.toFixed(4)}<br><b>Ветер:</b> ${windData.speed} м/с`;
+        }
+
+        // Запуск движения раз в секунду
+        setInterval(updateBalloonPosition, 1000);
+
+    </script>
+</body>
+</html>
