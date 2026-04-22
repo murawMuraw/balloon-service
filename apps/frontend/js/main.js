@@ -1,33 +1,73 @@
 //Точка входа, инициализация
-// ========== main.js - ТОЧКА ВХОДА ==========
+// ========== ГЛАВНЫЙ МОДУЛЬ (ТОЧКА ВХОДА) ==========
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Запуск приложения Aerostar');
     
-    // 1. Настройка карты
-    initMapEvents();
+    // 1. Инициализация карты
+    initMap();
     
-    // 2. Настройка обработчиков событий
-    initEventHandlers();
+    // 2. Инициализация обработчиков UI
+    initUIHandlers();
     
-    // 3. Настройка авторизации
+    // 3. Инициализация авторизации
     initAuthHandlers();
     
-    // 4. Восстановление сессии
+    // 4. Восстановление сессии пользователя
     restoreSession();
     
-    // 5. Скрываем загрузку
+    // 5. Настройка пинга сервера
+    startServerPing();
+    
+    // 6. Показываем приветственное окно
     setTimeout(() => {
-        const loading = document.getElementById('loading');
-        if (loading) loading.style.display = 'none';
-    }, 3000);
+        showWelcomeModal();
+    }, 500);
+    
+    // 7. Скрываем загрузку
+    hideLoading(3000);
+    
+    console.log('✅ Приложение готово к работе');
 });
 
-// Инициализация событий карты
-function initMapEvents() {
-    // Клик по карте для выбора стартовой точки
+// Инициализация карты и событий карты
+function initMap() {
+    // Создаем карту
+    window.map = L.map('map', { 
+        center: [52.12, 23.72], 
+        zoom: 8, 
+        zoomControl: true 
+    });
+    
+    // Добавляем слои
+    const esriSatellite = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+        attribution: 'Tiles © Esri', 
+        maxZoom: 19 
+    });
+    
+    const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: '© OpenStreetMap', 
+        maxZoom: 19 
+    });
+    
+    esriSatellite.addTo(window.map);
+    
+    // Контролы
+    L.control.layers(
+        { "🛰️ Спутник ESRI": esriSatellite, "🗺️ Схема OSM": osmStandard }, 
+        null, 
+        { position: 'topleft', collapsed: false }
+    ).addTo(window.map);
+    
+    L.control.scale({ metric: true, position: 'bottomleft' }).addTo(window.map);
+    
+    // Обработчик клика по карте
     window.map.on('click', async function(e) {
-        if (window.App.isFlying) return;
+        if (window.App.isFlying) {
+            showError('Нельзя выбрать новую точку во время полета. Сначала сбросьте полет.');
+            return;
+        }
         
         const { lat, lng } = e.latlng;
         
@@ -44,16 +84,12 @@ function initMapEvents() {
         updateCoordDisplay(lat, lng);
         
         // Получаем прогноз ветра
-        const flightStatus = document.getElementById('flightStatus');
-        flightStatus.className = 'flight-status status-waiting';
-        flightStatus.innerHTML = '⏳ Получение прогноза ветра...';
-        
+        updateFlightStatus('waiting', '⏳ Получение прогноза ветра...');
         await updateForecast(window.App.balloonPosition);
         
-        flightStatus.className = 'flight-status status-ready';
-        flightStatus.innerHTML = '⏸️ Ожидание старта';
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('hint').innerHTML = '✅ Точка выбрана. Нажмите СТАРТ';
+        updateFlightStatus('ready', '⏸️ Ожидание старта');
+        setStartButtonEnabled(true);
+        updateHint('✅ Точка выбрана. Нажмите СТАРТ');
     });
     
     // Обновление тумана при движении карты
@@ -71,22 +107,24 @@ function initMapEvents() {
     });
 }
 
-// Инициализация обработчиков кнопок
-function initEventHandlers() {
+// Инициализация обработчиков UI
+function initUIHandlers() {
     // Кнопки управления полётом
-    document.getElementById('startBtn').addEventListener('click', startFlight);
-    document.getElementById('resetBtn').addEventListener('click', resetFlight);
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
     
-    // Кнопка профиля
-    document.getElementById('profileButton').addEventListener('click', () => showAuthModal(true));
-    document.getElementById('continueGuestBtn').addEventListener('click', continueAsGuest);
+    if (startBtn) {
+        startBtn.addEventListener('click', startFlight);
+    }
     
-    // Кнопка закрытия рекламы
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetFlight);
+    }
+    
+    // Закрытие рекламного баннера
     const closeAdBtn = document.getElementById('close-ad');
     if (closeAdBtn) {
-        closeAdBtn.addEventListener('click', () => {
-            document.getElementById('ad-container').style.display = 'none';
-        });
+        closeAdBtn.addEventListener('click', hideAdBanner);
     }
     
     // Приветственное окно
@@ -105,69 +143,32 @@ function initEventHandlers() {
             }
         });
     }
-}
-
-// Инициализация обработчиков авторизации
-function initAuthHandlers() {
-    // Переключение табов в модальном окне
-    document.querySelectorAll('.auth-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            const tabName = tab.dataset.tab;
-            document.getElementById('loginForm').classList.toggle('hidden', tabName !== 'login');
-            document.getElementById('registerForm').classList.toggle('hidden', tabName !== 'register');
-        });
-    });
     
-    // Кнопки входа и регистрации
-    document.getElementById('loginBtn').addEventListener('click', () => {
-        login(
-            document.getElementById('loginEmail').value, 
-            document.getElementById('loginPassword').value
-        );
-    });
-    
-    document.getElementById('registerBtn').addEventListener('click', () => {
-        register(
-            document.getElementById('regEmail').value, 
-            document.getElementById('regPassword').value
-        );
-    });
-}
-
-// Восстановление сессии пользователя
-async function restoreSession() {
-    if (window.App.token) {
-        try {
-            const response = await fetch(`${window.App.API_URL}/api/auth/me`, {
-                headers: { 'Authorization': `Bearer ${window.App.token}` }
-            });
-            const user = await response.json();
+    // Обработчик клавиш (ESC закрывает модальные окна)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const authModal = document.getElementById('authModal');
+            const welcomeModal = document.getElementById('welcomeModal');
             
-            if (user && !user.error) {
-                window.App.currentUser = user;
-                window.App.isGuest = false;
-                updateProfileUI();
-                await restoreBalloon();
-            } else {
-                logout();
+            if (authModal && !authModal.classList.contains('hidden')) {
+                showAuthModal(false);
             }
-        } catch (error) {
-            console.error('Ошибка восстановления сессии:', error);
-            logout();
+            
+            if (welcomeModal && !welcomeModal.classList.contains('hidden')) {
+                closeWelcomeModal();
+            }
         }
-    } else {
-        updateProfileUI();
-    }
+    });
 }
 
-// Импорт (если используете модули)
-import { showWelcomeModal, hideLoading, updateFlightStatus } from './ui.js';
+// Обработка ошибок глобально
+window.addEventListener('error', (e) => {
+    console.error('Глобальная ошибка:', e.error);
+    showError('Произошла ошибка: ' + (e.error?.message || 'Неизвестная ошибка'));
+});
 
-// Использование
-document.addEventListener('DOMContentLoaded', () => {
-    showWelcomeModal();
-    hideLoading(3000);
-    updateFlightStatus('ready');
+// Обработка необработанных Promise ошибок
+window.addEventListener('unhandledrejection', (e) => {
+    console.error('Необработанный Promise rejection:', e.reason);
+    showError('Ошибка: ' + (e.reason?.message || 'Неизвестная ошибка'));
 });
