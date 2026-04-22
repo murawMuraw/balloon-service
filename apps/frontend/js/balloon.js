@@ -1,24 +1,5 @@
 //Логика полёта, движение шара
-// ========== ЛОГИКА ВОЗДУШНОГО ШАРА ==========
-
-// Отображение информации о ветре
-function updateWindDisplay(wind) {
-    const windInfo = document.getElementById('windInfo');
-    if (!windInfo) return;
-    
-    if (wind) {
-        const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
-        const index = Math.round(wind.direction / 45) % 8;
-        windInfo.innerHTML = `
-            <div>🌬️ Ветер: ${wind.speed.toFixed(1)} м/с</div>
-            <div>🧭 Направление: ${wind.direction}° (${directions[index]})</div>
-            ${wind.gust ? `<div>💨 Порывы: ${wind.gust.toFixed(1)} м/с</div>` : ''}
-            <div>⏱️ Обновлено: ${new Date().toLocaleTimeString()}</div>
-        `;
-    } else {
-        windInfo.innerHTML = `<div>🌬️ Ветер: --</div><div>🧭 Направление: --</div><div>📏 Скорость: -- м/с</div>`;
-    }
-}
+// ========== МОДУЛЬ УПРАВЛЕНИЯ ШАРОМ ==========
 
 // Расчет следующей точки на основе ветра
 function calculateNextPoint(start, wind, seconds) {
@@ -129,6 +110,8 @@ function moveBalloon() {
     
     updateCoordDisplay(window.App.balloonPosition.lat, window.App.balloonPosition.lng);
     updateHaze(window.App.balloonPosition);
+    
+    // Проверка ближайшего места
     checkNearbyPlace(window.App.balloonPosition.lat, window.App.balloonPosition.lng);
     
     // Сохраняем путь
@@ -148,24 +131,14 @@ function moveBalloon() {
     }
 }
 
-// Обновление отображения координат
-function updateCoordDisplay(lat, lng) {
-    const coordDisplay = document.getElementById('coordinates');
-    if (coordDisplay) {
-        coordDisplay.innerHTML = `Широта: ${lat.toFixed(6)}<br>Долгота: ${lng.toFixed(6)}`;
-    }
-}
-
 // Старт полета
 async function startFlight() {
     if (!window.App.balloonPosition) {
-        alert('Сначала выберите точку старта');
+        showError('Сначала выберите точку старта на карте');
         return;
     }
     
-    const flightStatus = document.getElementById('flightStatus');
-    flightStatus.className = 'flight-status status-waiting';
-    flightStatus.innerHTML = '⏳ Создание шара...';
+    updateFlightStatus('waiting', '⏳ Создание шара...');
     
     try {
         const response = await apiRequest('/api/balloons', {
@@ -188,11 +161,13 @@ async function startFlight() {
         };
         updateWindDisplay(window.App.currentWind);
         
+        // Удаляем стартовый маркер
         if (window.App.startMarker) {
             window.map.removeLayer(window.App.startMarker);
             window.App.startMarker = null;
         }
         
+        // Создаем маркер шара
         const balloonIcon = L.icon({
             iconUrl: '/images/balloon.png',
             iconSize: [32, 32],
@@ -207,6 +182,7 @@ async function startFlight() {
         
         window.App.actualPathPoints = [window.App.balloonPosition];
         
+        // Запускаем интервалы
         if (window.App.movementInterval) clearInterval(window.App.movementInterval);
         window.App.movementInterval = setInterval(moveBalloon, 1000);
         
@@ -223,17 +199,16 @@ async function startFlight() {
         }, 60000);
         
         window.App.isFlying = true;
-        document.getElementById('startBtn').disabled = true;
-        flightStatus.className = 'flight-status status-flying';
-        flightStatus.innerHTML = '🎈 В ПОЛЁТЕ';
-        document.getElementById('hint').style.display = 'none';
+        setStartButtonEnabled(false);
+        updateFlightStatus('flying', '🎈 В ПОЛЁТЕ');
+        hideHint();
         updateHaze(window.App.balloonPosition);
+        showSuccess('Полет начался! Следите за шаром на карте');
         
     } catch (error) {
         console.error('Ошибка старта:', error);
-        alert('Не удалось создать шар: ' + error.message);
-        flightStatus.className = 'flight-status status-ready';
-        flightStatus.innerHTML = '⏸️ Ожидание старта';
+        showError('Не удалось создать шар: ' + error.message);
+        updateFlightStatus('ready', '⏸️ Ожидание старта');
     }
 }
 
@@ -256,6 +231,7 @@ async function restoreBalloon() {
             };
             window.App.balloonId = balloon.id;
             
+            // Восстанавливаем путь
             if (balloon.path && balloon.path.length > 0) {
                 window.App.actualPathPoints = balloon.path.map(p => L.latLng(p.lat, p.lng));
                 if (window.App.pathLine) window.map.removeLayer(window.App.pathLine);
@@ -266,6 +242,7 @@ async function restoreBalloon() {
                 }).addTo(window.map);
             }
             
+            // Создаем маркер шара
             const balloonIcon = L.icon({
                 iconUrl: '/images/balloon.png',
                 iconSize: [32, 32],
@@ -283,12 +260,12 @@ async function restoreBalloon() {
             updateWindDisplay(window.App.currentWind);
             
             window.App.isFlying = true;
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('flightStatus').className = 'flight-status status-flying';
-            document.getElementById('flightStatus').innerHTML = '🎈 В ПОЛЁТЕ';
-            document.getElementById('hint').style.display = 'none';
+            setStartButtonEnabled(false);
+            updateFlightStatus('flying', '🎈 В ПОЛЁТЕ');
+            hideHint();
             updateHaze(window.App.balloonPosition);
             
+            // Запускаем интервалы
             if (window.App.movementInterval) clearInterval(window.App.movementInterval);
             window.App.movementInterval = setInterval(moveBalloon, 1000);
             
@@ -315,6 +292,7 @@ async function restoreBalloon() {
 
 // Сброс полета
 function resetFlight() {
+    // Останавливаем интервалы
     if (window.App.movementInterval) {
         clearInterval(window.App.movementInterval);
         window.App.movementInterval = null;
@@ -325,10 +303,12 @@ function resetFlight() {
         window.App.windUpdateInterval = null;
     }
     
+    // Останавливаем шар на сервере
     if (window.App.balloonId) {
         apiRequest(`/api/balloons/${window.App.balloonId}/stop`, { method: 'POST' }).catch(console.error);
     }
     
+    // Удаляем слои с карты
     if (window.App.balloonMarker) {
         window.map.removeLayer(window.App.balloonMarker);
         window.App.balloonMarker = null;
@@ -349,6 +329,7 @@ function resetFlight() {
         window.App.pathLine = null;
     }
     
+    // Сбрасываем состояние
     window.App.forecastPoints = [];
     window.App.actualPathPoints = [];
     window.App.isFlying = false;
@@ -356,12 +337,14 @@ function resetFlight() {
     window.App.currentWind = null;
     window.App.balloonId = null;
     
-    document.getElementById('coordinates').innerHTML = 'Широта: --<br>Долгота: --';
+    // Обновляем UI
+    updateCoordDisplay(0, 0);
     updateWindDisplay(null);
-    document.getElementById('startBtn').disabled = true;
-    document.getElementById('flightStatus').className = 'flight-status status-ready';
-    document.getElementById('flightStatus').innerHTML = '⏸️ Ожидание старта';
-    document.getElementById('hint').style.display = 'block';
-    document.getElementById('hint').innerHTML = '👆 Кликните на карту, чтобы выбрать место старта';
+    setStartButtonEnabled(false);
+    updateFlightStatus('ready', '⏸️ Ожидание старта');
+    updateHint('👆 Кликните на карту, чтобы выбрать место старта');
     updateHaze(null);
+    hidePlaceInfo();
+    
+    showSuccess('Полет остановлен');
 }
