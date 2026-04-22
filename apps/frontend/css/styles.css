@@ -252,4 +252,33 @@
         font-size: 24px;
         text-shadow: 0 0 10px rgba(255,255,255,0.8);
     }
+/* Анимация для уведомлений */
+@keyframes slideIn {
+    from {
+        transform: translateX(-50%) translateY(-100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
 
+@keyframes slideOut {
+    from {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-50%) translateY(-100px);
+        opacity: 0;
+    }
+}
+
+.error-notification, .success-notification {
+    animation: slideIn 0.3s ease-out;
+}
+
+.error-notification div, .success-notification div {
+    backdrop-filter: blur(10px);
+}
