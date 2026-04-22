@@ -161,3 +161,13 @@ async function restoreSession() {
         updateProfileUI();
     }
 }
+
+// Импорт (если используете модули)
+import { showWelcomeModal, hideLoading, updateFlightStatus } from './ui.js';
+
+// Использование
+document.addEventListener('DOMContentLoaded', () => {
+    showWelcomeModal();
+    hideLoading(3000);
+    updateFlightStatus('ready');
+});
