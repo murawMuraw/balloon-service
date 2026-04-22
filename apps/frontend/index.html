@@ -108,33 +108,10 @@
    
 </div>
 
-
+     <script src="js/config.js"></script>
      <script src="js/auth.js"></script>
     <script>
-        // ========== НАСТРОЙКИ ==========
-        const API_URL = window.location.origin;
-        
-        // Состояние авторизации
-        let token = localStorage.getItem('token');
-        let currentUser = null;
-        let isGuest = !token;
-        
-        // Состояние полёта
-        let isFlying = false;
-        let startMarker = null;
-        let balloonMarker = null;
-        let balloonPosition = null;
-        let currentWind = null;
-        let forecastLine = null;
-        let pathLine = null;
-        let forecastPoints = [];
-        let actualPathPoints = [];
-        let movementInterval = null;
-        let windUpdateInterval = null;
-        let balloonId = null;
-        
-        const ZONES = { BRIGHT: 5000, MEDIUM: 10000, HAZE: 15000 };
-        
+               
         setTimeout(() => document.getElementById('loading').style.display = 'none', 3000);
 
         
