@@ -1,10 +1,16 @@
- // Конфигурация (API_URL, ZONES)
-// ========== КОНФИГУРАЦИЯ ПРИЛОЖЕНИЯ ==========
+ // ========== КОНФИГУРАЦИЯ ПРИЛОЖЕНИЯ ==========
+
+// Определяем API URL в зависимости от окружения
+// Для Render production используем жестко заданный URL вашего бэкенда
+// Для локальной разработки используем localhost
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000'  // Локальная разработка
+    : 'https://balloon-service-backend.onrender.com';  // Production на Render
 
 window.App = {
     // API конфигурация
-    API_URL: window.location.origin,
-    
+    API_URL: API_URL,
+ 
     // Зоны тумана (в метрах)
     ZONES: { 
         BRIGHT: 5000,   // Зона полной видимости
@@ -33,4 +39,11 @@ window.App = {
     
     // UI состояние
     lastPlaceCheck: null
-};;
+};
+
+// Для отладки - выводим в консоль информацию о конфигурации
+console.log('🔧 Конфигурация приложения:', {
+    API_URL: window.App.API_URL,
+    environment: window.location.hostname === 'localhost' ? 'development' : 'production',
+    hostname: window.location.hostname
+});
