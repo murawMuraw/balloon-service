@@ -120,14 +120,13 @@
             });
             
             // Если баннер уже закрывали, не показываем
-            if (localStorage.getItem('ad_closed') === 'true') {
-                document.getElementById('ad-container').style.display = 'none';
-            }
+           // if (localStorage.getItem('ad_closed') === 'true') {
+          //      document.getElementById('ad-container').style.display = 'none';
+          //  }
         }
         
         // Логирование состояния (ждём загрузки всех модулей)
-        setTimeout(() => {          
-        }, 100);
+        setTimeout(() => {    }, 100);
     </script>
 </body>
 </html>
