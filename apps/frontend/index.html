@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Воздушный шар - Симулятор полета</title>
+    <title>Hot Air Balloon - Flight Simulator</title>
     <meta charset="utf-8" />
     
     <!-- Подключаем Leaflet -->
@@ -12,31 +12,32 @@
 <body>
     <div id="map"></div>
     
-    <!-- Рекламный баннер внизу -->
+    <!-- Рекламный баннер внизу справа (не перекрывает левые кнопки) -->
     <div id="ad-container" style="
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        bottom: 20px;
+        right: 20px;
         background: rgba(255,255,255,0.95);
-        border-top: 2px solid #4285f4;
-        padding: 8px;
+        border-radius: 12px;
+        border: 2px solid #4285f4;
+        padding: 8px 12px;
         text-align: center;
         z-index: 1500;
         font-family: Arial, sans-serif;
-        font-size: 12px;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        font-size: 11px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         backdrop-filter: blur(10px);
+        max-width: 260px;
     ">
-        <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
-            <span style="color: #666;">Реклама</span>
-            <div id="ad-content" style="flex-grow: 1; max-width: 728px;">
-                <div style="background: #f0f0f0; border-radius: 8px; padding: 12px; border: 1px dashed #ccc;">
-                    📢 <strong>Ваша реклама здесь</strong><br>
-                    <span style="font-size: 11px; color: #999;">Свяжитесь с нами: admin@balloon-service.com</span>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <span style="color: #666; font-size: 10px;">Ad</span>
+            <div id="ad-content" style="flex-grow: 1;">
+                <div style="background: #f0f0f0; border-radius: 6px; padding: 8px 10px; border: 1px dashed #ccc;">
+                    📢 <strong>Your ad here</strong><br>
+                    <span style="font-size: 9px; color: #999;">contact@balloon-service.com</span>
                 </div>
             </div>
-            <button id="close-ad" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #999;">✕</button>
+            <button id="close-ad" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #999; padding: 0 4px;">✕</button>
         </div>
     </div>
     
@@ -44,58 +45,58 @@
     
     <!-- Кнопка профиля -->
     <div id="profileButton" class="profile-btn">
-        <span>👤</span> <span id="profileStatus">Гость</span>
+        <span>👤</span> <span id="profileStatus">Guest</span>
     </div>
     
     <!-- Модальное окно авторизации -->
     <div id="authModal" class="auth-modal hidden">
         <div class="auth-container">
             <div class="auth-tabs">
-                <div class="auth-tab active" data-tab="login">Вход</div>
-                <div class="auth-tab" data-tab="register">Регистрация</div>
+                <div class="auth-tab active" data-tab="login">Sign In</div>
+                <div class="auth-tab" data-tab="register">Sign Up</div>
             </div>
             
             <div id="loginForm" class="auth-form">
                 <input type="email" id="loginEmail" placeholder="Email">
-                <input type="password" id="loginPassword" placeholder="Пароль">
-                <button id="loginBtn">Войти</button>
+                <input type="password" id="loginPassword" placeholder="Password">
+                <button id="loginBtn">Sign In</button>
                 <div id="loginError" class="auth-error"></div>
             </div>
             
             <div id="registerForm" class="auth-form hidden">
                 <input type="email" id="regEmail" placeholder="Email">
-                <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)">
-                <button id="registerBtn">Зарегистрироваться</button>
+                <input type="password" id="regPassword" placeholder="Password (min. 6 characters)">
+                <button id="registerBtn">Sign Up</button>
                 <div id="regError" class="auth-error"></div>
             </div>
             <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #999;">
-                <button id="continueGuestBtn" style="background: none; border: none; color: #4285f4; cursor: pointer;">Продолжить как гость</button>
+                <button id="continueGuestBtn" style="background: none; border: none; color: #4285f4; cursor: pointer;">Continue as guest</button>
             </div>
         </div>
     </div>
     
     <div class="left-controls">
-        <button class="custom-button" id="startBtn" disabled>▶ СТАРТ</button>
-        <button class="custom-button" id="resetBtn">🗑️ Сбросить</button>
+        <button class="custom-button" id="startBtn" disabled>▶ START</button>
+        <button class="custom-button" id="resetBtn">🗑️ Reset</button>
     </div>
     
     <div class="info-panel">
-        <h3 style="margin: 0 0 10px 0;">🎈 Воздушный шар</h3>
-        <div class="coord-display" id="coordinates">Широта: --<br>Долгота: --</div>
+        <h3 style="margin: 0 0 10px 0;">🎈 Hot Air Balloon</h3>
+        <div class="coord-display" id="coordinates">Latitude: --<br>Longitude: --</div>
         <div class="wind-info" id="windInfo">
-            <div>🌬️ Ветер: --</div>
-            <div>🧭 Направление: --</div>
-            <div>📏 Скорость: -- м/с</div>
+            <div>🌬️ Wind: --</div>
+            <div>🧭 Direction: --</div>
+            <div>📏 Speed: -- m/s</div>
         </div>
-        <div class="flight-status status-ready" id="flightStatus">⏸️ Ожидание старта</div>
+        <div class="flight-status status-ready" id="flightStatus">⏸️ Waiting for start</div>
         <div id="placeInfo" style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; display: none; border-left: 3px solid #ff9800;">
             <div id="placeName" style="font-weight: bold; color: #333; margin-bottom: 8px;"></div>
             <div id="placeLink" style="margin-top: 5px;"></div>
         </div>
     </div>
 
-    <div class="hint" id="hint">👆 Кликните на карту, чтобы выбрать место старта</div>
-    <div class="loading" id="loading">Загрузка карты... 🗺️</div>
+    <div class="hint" id="hint">👆 Click on the map to select starting point</div>
+    <div class="loading" id="loading">Loading map... 🗺️</div>
     
     <!-- Подключаем скрипты -->
     <script src="js/config.js"></script>
