@@ -1,11 +1,12 @@
 const { Pool } = require('pg');
+const config = require('./config');
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: config.databaseUrl,
   ssl: { rejectUnauthorized: false }
 });
 
-async function initDb() {
+async function initDatabase() {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -38,4 +39,4 @@ async function initDb() {
   }
 }
 
-module.exports = { pool, initDb };
+module.exports = { pool, initDatabase };
