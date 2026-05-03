@@ -258,19 +258,23 @@ router.post('/balloons/:id/stop', async (req, res) => {
   }
 });
 
+// ========== ИСПРАВЛЕННЫЙ ЭНДПОИНТ /api/balloons ==========
 router.get('/balloons', async (req, res) => {
   try {
+    // Добавили start_time в SQL запрос
     const dbResult = await pool.query(
-      'SELECT id, user_id, current_lat, current_lng, wind_speed, last_update FROM balloons WHERE is_flying = true'
+      'SELECT id, user_id, current_lat, current_lng, wind_speed, last_update, start_time FROM balloons WHERE is_flying = true'
     );
     
+    // Добавили start_time для гостевых шаров
     const guestBalloonsList = guestStore.getActive().map(balloon => ({
       id: balloon.id,
       user_id: balloon.user_id,
       current_lat: balloon.current_lat,
       current_lng: balloon.current_lng,
       wind_speed: balloon.wind_speed,
-      last_update: balloon.last_update
+      last_update: balloon.last_update,
+      start_time: balloon.start_time
     }));
     
     const allBalloons = [...dbResult.rows, ...guestBalloonsList];
